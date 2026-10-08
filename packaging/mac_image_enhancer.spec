@@ -50,5 +50,12 @@ app = BUNDLE(
         "NSHighResolutionCapable": True,
         "NSHumanReadableCopyright": "Copyright (c) 2026 mac-image-enhancer contributors. MIT License.",
         "LSApplicationCategoryType": "public.app-category.photography",
+        # pictures dropped on the Dock icon, or "Open With" in Finder (gui.py handles the OpenDocument event)
+        "CFBundleDocumentTypes": [{
+            "CFBundleTypeName": "Picture",
+            "CFBundleTypeRole": "Viewer",
+            "LSHandlerRank": "Alternate",
+            "LSItemContentTypes": ["public.jpeg", "public.png", "public.tiff", "com.microsoft.bmp", "org.webmproject.webp"],
+        }],
     },
 )

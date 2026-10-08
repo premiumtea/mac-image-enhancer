@@ -270,10 +270,11 @@ class App:
         self.set_status(*self.status_state)
         self.update_plan()
         self.draw_stage()
+        self.root.after_idle(self.fit_window)
 
     # -- widgets ---------------------------------------------------------------------------------
     def _build_styles(self):
-        base = font.nametofont("TkDefaultFont")
+        base = self.base_font = font.nametofont("TkDefaultFont")
         self.bold = base.copy()
         self.bold.configure(weight="bold")
         self.h2 = base.copy()
@@ -318,14 +319,12 @@ class App:
         self.stage.bind("<Configure>", lambda e: self.draw_stage())
         self.stage.bind("<Button-1>", self.on_stage_click)
         self.stage.bind("<B1-Motion>", self.on_stage_click)
-        self.open_btn = self._reg(self.make(ttk.Button, self.stage, "Accent.TButton", command=self.on_open), "open_btn")
-        self.change_btn = self._reg(ttk.Button(self.stage, command=self.on_open), "change_pic")
-        self.back_btn = self._reg(ttk.Button(self.stage, command=self.on_back), "back_to_pick")
+        self.stage_buttons, self._cursor = {}, ""
 
         # the three steps
-        panel = ttk.Frame(body, padding=(18, 14, 18, 8), width=372)
+        panel = ttk.Frame(body, padding=(18, 14, 18, 8))
         panel.grid(row=0, column=1, sticky="ns")
-        panel.grid_propagate(False)
+        ttk.Frame(panel, width=336, height=1).pack()  # the panel is this wide, plus its padding, in every language
         self.panel = panel
         head = ttk.Frame(panel)
         head.pack(fill="x")
@@ -411,7 +410,7 @@ class App:
 
         # the bar
         ttk.Separator(r).grid(row=1, column=0, sticky="ew")
-        bar = ttk.Frame(r, padding=(18, 10))
+        bar = self.bar = ttk.Frame(r, padding=(18, 10))
         bar.grid(row=2, column=0, sticky="ew")
         bar.columnconfigure(0, weight=1)
         self.summary = ttk.Label(bar, textvariable=self.summary_var, font=self.bold)
@@ -428,15 +427,15 @@ class App:
         btns.grid(row=0, column=1, rowspan=3)
         self.cancel_btn = self._reg(ttk.Button(btns, command=self.on_cancel), "cancel_btn")
         self.preview_btn = self._reg(ttk.Button(btns, command=self.on_preview), "preview_btn")
-        self.save_btn = self._reg(self.make(ttk.Button, btns, "Accent.TButton", command=self.on_save), "save_btn")
+        self.save_btn = self._reg(ttk.Button(btns, command=self.on_save, default="active"), "save_btn")
         self.preview_btn.pack(side="left", padx=4)
         self.save_btn.pack(side="left", padx=4)
         self.cancel_btn.state(["disabled"])
         self.face_scale.state(["disabled"])
 
     def _section(self, parent, key):
-        ttk.Separator(parent).pack(fill="x", pady=(14, 8))
-        self._reg(ttk.Label(parent, font=self.bold), key).pack(anchor="w", pady=(0, 6))
+        ttk.Separator(parent).pack(fill="x", pady=(12, 6))
+        self._reg(ttk.Label(parent, font=self.bold), key).pack(anchor="w", pady=(0, 4))
 
     def _build_advanced(self):
         win = tk.Toplevel(self.root)
@@ -533,6 +532,19 @@ class App:
         tiff = self.v["bits16"].get() or bool(self._cmyk_path)
         self.compress.state(["!disabled" if tiff else "disabled"])
         self.clear_profile_btn.state(["!disabled" if self._cmyk_path else "disabled"])
+
+    def fit_window(self):
+        """Make the window at least as tall as the steps need in this language, with the face note
+        open, so that no button is ever cut off and switching faces on does not resize the window."""
+        r = self.root
+        r.update_idletasks()
+        need = self.panel.winfo_reqheight() + self.bar.winfo_reqheight() + 1
+        if not self.v["faces"].get():
+            need += self.faces_extra.winfo_reqheight()
+        need = max(need, 560)
+        r.minsize(1040, need)
+        if 1 < r.winfo_height() < need:
+            r.geometry(f"{max(r.winfo_width(), 1040)}x{need}")
 
     # -- events ----------------------------------------------------------------------------------
     def on_language_box(self, _=None):
@@ -741,22 +753,21 @@ class App:
         if not hasattr(self, "hint"):
             return
         c.delete("all")
+        self.stage_buttons = {}
         cw, ch = max(c.winfo_width(), 2), max(c.winfo_height(), 2)
         if not self.images:
-            self.mode = "empty"
+            self.mode, self._cursor = "empty", ""
             self._draw_empty(cw, ch)
         elif self.compare and self.preview_images:
-            self.mode = "compare"
-            c.configure(cursor="sb_h_double_arrow")
+            self.mode, self._cursor = "compare", "sb_h_double_arrow"
             self._draw_compare(cw, ch)
         else:
-            self.mode = "source"
-            c.configure(cursor="crosshair")
+            self.mode, self._cursor = "source", "crosshair"
             self._draw_source(cw, ch)
+        c.configure(cursor=self._cursor)
 
     def _draw_empty(self, cw, ch):
         c = self.stage
-        c.configure(cursor="")
         cx, cy = cw / 2, ch / 2 - 40
         # a picture glyph
         c.create_rectangle(cx - 44, cy - 66, cx + 44, cy - 10, outline=STAGE_DIM, width=3)
@@ -766,9 +777,31 @@ class App:
         c.create_text(cx, cy + 18, text=self.t("empty_title"), fill=STAGE_FG, font=self.h2, width=wrap_at(cw - 60),
                       justify="center")
         c.create_text(cx, cy + 62, text=self.t("empty_text"), fill=STAGE_DIM, width=wrap_at(cw - 80, 460), justify="center")
-        c.create_window(cx, cy + 118, window=self.open_btn)
+        self.stage_button("open", cx, cy + 118, self.t("open_btn"), self.on_open, "c", accent=True)
         c.create_text(cx, cy + 162, text=self.t("empty_hint"), fill=STAGE_DIM, font=self.small, width=wrap_at(cw - 80, 460),
                       justify="center")
+
+    def stage_button(self, name, x, y, text, command, anchor="e", accent=False):
+        """A button drawn on the stage, right-aligned at x (or centred on it). A ttk button on the dark
+        canvas would show a light box around itself."""
+        c = self.stage
+        label = c.create_text(0, 0, text=text, font=self.bold if accent else self.base_font, fill="white")
+        x0, y0, x1, y1 = c.bbox(label)
+        w, h = x1 - x0 + 36, 32
+        left = x - w if anchor == "e" else x - w / 2
+        top, r = y - h / 2, h / 2
+        fill, hover, line = ("#0a84ff", "#409cff", "#0a84ff") if accent else ("#3c3c3f", "#505054", "#636368")
+        pts = [left + r, top, left + w - r, top, left + w, top, left + w, top + r, left + w, top + h - r, left + w, top + h,
+               left + w - r, top + h, left + r, top + h, left, top + h, left, top + h - r, left, top + r, left, top]
+        shape = c.create_polygon(pts, smooth=True, fill=fill, outline=line)
+        c.coords(label, left + w / 2, top + h / 2)
+        c.tag_raise(label)
+        for item in (shape, label):
+            c.itemconfigure(item, tags=("btn", name))
+        c.tag_bind(name, "<Enter>", lambda e: (c.itemconfigure(shape, fill=hover), c.configure(cursor="hand2")))
+        c.tag_bind(name, "<Leave>", lambda e: (c.itemconfigure(shape, fill=fill), c.configure(cursor=self._cursor)))
+        c.tag_bind(name, "<ButtonRelease-1>", lambda e: command())
+        self.stage_buttons[name] = {"text": text, "command": command}
 
     def _strip(self, cw, ch):
         """The area the picture may use between the top and bottom strips."""
@@ -783,7 +816,7 @@ class App:
         if len(self.images) > 1:
             info += "   " + self.t("files_more", n=len(self.images) - 1)
         c.create_text(20, BAND / 2, anchor="w", text=info, fill=STAGE_FG, width=wrap_at(cw - 220, 900))
-        c.create_window(cw - 20, BAND / 2, anchor="e", window=self.change_btn)
+        self.stage_button("change", cw - 20, BAND / 2, self.t("change_pic"), self.on_open)
         sw, sh = self.src_size
         crop = plan[2] if plan else (0, 0, sw, sh)
         fw, fh = self.full_thumb.size  # the thumbnail covers the whole source: crop it in proportion
@@ -823,9 +856,11 @@ class App:
             c.create_text(x + 1, oy + 9, anchor=anchor, text=text, fill="black", font=self.bold)
             c.create_text(x, oy + 8, anchor=anchor, text=text, fill="white", font=self.bold)
         c.create_text(20, BAND / 2, anchor="w", text=self.t("compare_hint"), fill=STAGE_DIM, width=wrap_at(cw - 260, 900))
-        c.create_window(cw - 20, BAND / 2, anchor="e", window=self.back_btn)
+        self.stage_button("back", cw - 20, BAND / 2, self.t("back_to_pick"), self.on_back)
 
     def on_stage_click(self, event):
+        if "btn" in self.stage.gettags("current"):  # a button, not the picture
+            return
         if self.mode == "compare":
             ox, oy, pw, ph = self._cmp
             self.split = min(max((event.x - ox) / pw, 0.0), 1.0)
@@ -1104,7 +1139,6 @@ def main():
         print(f"mac-image-enhancer {E.__version__}")
         return
     root = tk.Tk()
-    root.minsize(1040, 700)
     root.geometry("1120x740")
     app = App(root)
     paths = [a for a in args if not a.startswith("-") and os.path.isfile(a)]

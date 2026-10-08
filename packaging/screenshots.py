@@ -21,27 +21,28 @@ import gui
 import weights
 
 
-def sample_picture(path, size=(480, 320)):
+def sample_picture(path, size=(960, 640)):
     """A small made-up landscape: sky, sun, hills, a house. Soft on purpose, like a small phone picture."""
     w, h = size
+    zoom = k = w / 480  # sizes below are for a 480 px wide picture
     img = Image.new("RGB", size)
     px = ImageDraw.Draw(img)
     for y in range(h):  # sky
         t = y / h
         px.line([(0, y), (w, y)], fill=(int(90 + 120 * t), int(150 + 80 * t), int(230 - 20 * t)))
-    px.ellipse((w * 0.68, h * 0.12, w * 0.68 + 60, h * 0.12 + 60), fill=(255, 238, 170))
-    for k, (base, col) in enumerate(((0.62, (74, 110, 90)), (0.72, (52, 88, 62)), (0.84, (34, 64, 40)))):
+    px.ellipse((w * 0.68, h * 0.12, w * 0.68 + 60 * k, h * 0.12 + 60 * k), fill=(255, 238, 170))
+    for n, (base, col) in enumerate(((0.62, (74, 110, 90)), (0.72, (52, 88, 62)), (0.84, (34, 64, 40)))):
         pts = [(0, h)]
-        for x in range(0, w + 1, 8):
-            pts.append((x, h * base + 22 * ((k + 1) % 3 - 1) * math.sin(x / (40 + 25 * k) + k)))
+        for x in range(0, w + 1, round(8 * k)):
+            pts.append((x, h * base + 22 * zoom * ((n + 1) % 3 - 1) * math.sin(x / (zoom * (40 + 25 * n)) + n)))
         pts.append((w, h))
         px.polygon(pts, fill=col)
     px.rectangle((w * 0.18, h * 0.64, w * 0.30, h * 0.78), fill=(205, 175, 140))  # a house
     px.polygon([(w * 0.17, h * 0.64), (w * 0.24, h * 0.55), (w * 0.31, h * 0.64)], fill=(150, 60, 50))
     px.rectangle((w * 0.22, h * 0.69, w * 0.26, h * 0.78), fill=(90, 60, 40))
     for i in range(6):  # fence
-        px.line([(w * 0.34 + i * 12, h * 0.74), (w * 0.34 + i * 12, h * 0.82)], fill=(235, 235, 225), width=3)
-    img = img.filter(ImageFilter.GaussianBlur(0.8))
+        px.line([(w * 0.34 + i * 12 * k, h * 0.74), (w * 0.34 + i * 12 * k, h * 0.82)], fill=(235, 235, 225), width=round(3 * k))
+    img = img.filter(ImageFilter.GaussianBlur(0.8 * k))
     img.save(path, quality=80)
     return path
 
@@ -70,8 +71,9 @@ def main():
             time.sleep(0.02)
 
     def shot(name, window=None):
-        settle()
         w = window or root
+        w.focus_force()  # a window that is not frontmost is drawn with its controls greyed out
+        settle()
         x, y, wd, ht = w.winfo_rootx(), w.winfo_rooty(), w.winfo_width(), w.winfo_height()
         path = os.path.join(out, f"{name}{suffix}.png")
         r = subprocess.run(["screencapture", "-x", "-R", f"{x},{y - 28},{wd},{ht + 28}", path], capture_output=True, text=True)
@@ -83,11 +85,11 @@ def main():
     app.on_preset()
     shot("2-source")
 
-    app.center = (0.42, 0.58)
+    app.center = (0.30, 0.76)  # the house and the fence: edges, where the difference shows
     app.draw_stage()
     app.on_preview()
     t0 = time.time()
-    while (app.busy or not app.compare) and time.time() - t0 < 240:
+    while (app.busy or not app.compare) and time.time() - t0 < 600:
         settle(0.3)
         if not app.busy and not app.compare:
             print("preview did not produce a comparison:", app.status_var.get(), flush=True)

@@ -190,7 +190,8 @@ with tempfile.TemporaryDirectory() as d:
         # the first look: nothing opened yet, and it says what to do
         assert app.mode == "empty" and app.stage.winfo_width() > 400 and app.panel.winfo_width() > 300
         assert i18n.tr("fr", "empty_title") in stage_texts(app) and app.summary_var.get() == i18n.tr("fr", "summary_none")
-        assert app.open_btn.cget("text") == i18n.tr("fr", "open_btn") and app.open_btn.winfo_ismapped()
+        assert list(app.stage_buttons) == ["open"] and app.stage_buttons["open"]["text"] == i18n.tr("fr", "open_btn")
+        assert i18n.tr("fr", "open_btn") in stage_texts(app)
         assert app.preview_btn.instate(["!disabled"]) and app.cancel_btn.instate(["disabled"])
         assert app.cancel_btn.winfo_manager() == "" and app.progress.winfo_manager() == ""  # nothing running: no Cancel, no bar
         assert set(app.quality) == {"150", "200", "300"}
@@ -210,6 +211,7 @@ with tempfile.TemporaryDirectory() as d:
         assert app.hint.cget("text") == "● " + i18n.tr("fr", "hint_stretch")  # 5x: some areas may look soft
         assert app.scale_note.cget("text") == "Agrandissement ×5.0" and app.crop_note.cget("text") == ""
         assert "a.png  ·  40 × 30 px" in stage_texts(app) and len(marks(app)) == 1
+        assert list(app.stage_buttons) == ["change"] and app.stage_buttons["change"]["text"] == i18n.tr("fr", "change_pic")
         app.v["height"].set("1")  # a size of one's own: the picture is cropped to fit
         root.update()
         assert app.summary_var.get().startswith("Résultat : 200 × 100 px") and app.crop_note.cget("text") != ""
@@ -260,6 +262,7 @@ with tempfile.TemporaryDirectory() as d:
             assert status(app) == err(code, "need_image"), (code, status(app))  # the error on screen speaks the new language
             assert app.preview_btn.cget("text") == i18n.tr(code, "preview_btn") and app.save_btn.cget("text")
             assert app.chips["custom"].cget("text") == i18n.tr(code, "preset_custom")
+            assert app.stage_buttons["change"]["text"] == i18n.tr(code, "change_pic")
             assert app.unit_box.get() == i18n.tr(code, "unit_in") and i18n.tr(code, "file_info", name="a.png", w=40, h=30) in stage_texts(app)
             labels = [app.menubar.entrycget(i, "label") for i in range(app.menubar.index("end") + 1)
                       if app.menubar.type(i) == "cascade"]
@@ -305,6 +308,7 @@ with tempfile.TemporaryDirectory() as d:
         assert app.cancel_btn.winfo_manager() == "" and app.preview_btn.instate(["!disabled"])
         assert i18n.tr("fr", "before") in stage_texts(app) and i18n.tr("fr", "after") in stage_texts(app)
         assert i18n.tr("fr", "compare_hint") in stage_texts(app) and not marks(app)
+        assert list(app.stage_buttons) == ["back"] and app.stage_buttons["back"]["text"] == i18n.tr("fr", "back_to_pick")
         # the "before" is the plain enlargement of the same area, the "after" the AI one: they differ
         assert np.abs(np.asarray(app.preview_images[0]).astype(int) - np.asarray(app.preview_images[1])).mean() > 1
         # dragging the line: the left of it is the plain enlargement, the right of it the result
@@ -315,8 +319,8 @@ with tempfile.TemporaryDirectory() as d:
         assert app.split == 0.0
         app.on_stage_click(Click(10_000, 0))
         assert app.split == 1.0
-        # back to choosing an area
-        app.on_back()
+        # back to choosing an area, by the button on the stage
+        app.stage_buttons["back"]["command"]()
         assert app.mode == "source" and len(marks(app)) == 1
         # changing anything the picture depends on drops an open comparison: it would show something else
         app.on_preview()
@@ -391,8 +395,8 @@ with tempfile.TemporaryDirectory() as d:
         # Cancel: stops, leaves nothing half-written, and the window becomes usable again
         cancelled = os.path.join(d, "cancelled")
         os.makedirs(cancelled)
-        app.v["width"].set("6")  # bigger: several tiles, so there is something to interrupt
-        app.v["height"].set("4.5")
+        app.v["width"].set("40")  # big (4000 x 3000 px) and in small tiles, so that even a fast CPU is still busy when Cancel comes
+        app.v["height"].set("30")
         opts = app.collect(None)
         opts["tile"] = 16
         app.run_enhance(opts, os.path.join(cancelled, "x.png"))
