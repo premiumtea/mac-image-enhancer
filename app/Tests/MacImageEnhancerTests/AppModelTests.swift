@@ -172,6 +172,27 @@ final class EngineTests: XCTestCase {
         XCTAssertNil(EngineEvent(line: ""))
     }
 
+    /// A process that is over almost as soon as it starts must still deliver its output and end the stream. (Reading the
+    /// pipe with FileHandle.bytes once never saw the end of such an output, and the window stayed "working" for good.)
+    func testQuickProcessesAlwaysFinish() async throws {
+        let line = #"{"event": "done", "outputs": [], "skipped": 0, "failed": []}"#
+        for round in 0..<300 {
+            let run = try EngineRun(command: EngineCommand(executable: URL(fileURLWithPath: "/bin/echo"), prefixArgs: []), arguments: [line])
+            var got: [EngineEvent] = []
+            let finished = await withTaskGroup(of: Bool.self) { group in
+                group.addTask { for await e in run.events { got.append(e) }; return true }
+                group.addTask { try? await Task.sleep(nanoseconds: 10_000_000_000); return false }
+                let first = await group.next() ?? false
+                group.cancelAll()
+                return first
+            }
+            XCTAssertTrue(finished, "round \(round): the output never ended")
+            if !finished { return }
+            XCTAssertEqual(got, [.done(outputs: [], skipped: 0, failed: [])], "round \(round)")
+            _ = await run.waitUntilExit()
+        }
+    }
+
     func testInfoDecodes() throws {
         let json = #"{"version":"0.1.0","models_dir":"/m","groups":{"photo":{"files":["a.pth"],"missing":["a.pth"],"missing_bytes":67040989}},"face_min_px":32,"coreml":false,"vision":true}"#
         let info = try EngineInfo.decode(Data(json.utf8))

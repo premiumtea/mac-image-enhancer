@@ -88,11 +88,20 @@ enum EngineError: LocalizedError {
 }
 
 /// A running engine process. Its output arrives as `events`; `cancel()` asks it to stop cleanly (SIGTERM).
+///
+/// The output is read with a readability handler and split into lines here, not with `FileHandle.bytes`: with that, a
+/// process that was over almost as soon as it started could leave the stream open for good (found by the flow tests on
+/// a CI runner: the window stayed "working" forever). As a second guard, once the process has ended the pipe is drained
+/// and the stream finished even if the pipe never reported its end.
 final class EngineRun {
     let events: AsyncStream<EngineEvent>
     private let process = Process()
+    private let reader: FileHandle
+    private let continuation: AsyncStream<EngineEvent>.Continuation
     private let lock = NSLock()
     private var tail = ""
+    private var pending = Data()
+    private var finished = false
 
     /// The last of what the engine wrote to stderr: the explanation when it dies without saying why.
     var stderrTail: String { lock.lock(); defer { lock.unlock() }; return tail }
@@ -110,7 +119,8 @@ final class EngineRun {
         process.environment = env
         var cont: AsyncStream<EngineEvent>.Continuation!
         events = AsyncStream { cont = $0 }
-        let continuation = cont!
+        continuation = cont
+        reader = out.fileHandleForReading
         err.fileHandleForReading.readabilityHandler = { [weak self] h in
             let data = h.availableData
             guard !data.isEmpty, let self else { return }
@@ -118,16 +128,43 @@ final class EngineRun {
             self.tail = String((self.tail + String(decoding: data, as: UTF8.self)).suffix(4000))
             self.lock.unlock()
         }
-        try process.run()
-        let reader = out.fileHandleForReading
-        Task.detached {
-            do {
-                for try await line in reader.bytes.lines {
-                    if let ev = EngineEvent(line: line) { continuation.yield(ev) }
-                }
-            } catch {}
-            continuation.finish()
+        reader.readabilityHandler = { [weak self] h in self?.received(h.availableData) }
+        process.terminationHandler = { [weak self] _ in
+            DispatchQueue.global().asyncAfter(deadline: .now() + 1.5) { self?.drainAndFinish() }
         }
+        try process.run()
+    }
+
+    /// Some output (or, when empty, the end of it): complete lines become events.
+    private func received(_ data: Data) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !finished else { return }
+        if data.isEmpty {  // the end of the pipe
+            if let line = String(data: pending, encoding: .utf8), let ev = EngineEvent(line: line) { continuation.yield(ev) }
+            pending = Data()
+            finished = true
+            continuation.finish()
+            reader.readabilityHandler = nil
+            return
+        }
+        pending.append(data)
+        while let nl = pending.firstIndex(of: 0x0A) {
+            let line = String(decoding: pending[pending.startIndex..<nl], as: UTF8.self)
+            pending = Data(pending[pending.index(after: nl)...])
+            if let ev = EngineEvent(line: line) { continuation.yield(ev) }
+        }
+    }
+
+    /// The process is over: take whatever is left in the pipe and close the stream.
+    private func drainAndFinish() {
+        lock.lock()
+        let done = finished
+        lock.unlock()
+        if done { return }
+        reader.readabilityHandler = nil
+        if let rest = try? reader.readToEnd(), !rest.isEmpty { received(rest) }
+        received(Data())
     }
 
     func waitUntilExit() async -> Int32 {
