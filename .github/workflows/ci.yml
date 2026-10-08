@@ -21,15 +21,19 @@ jobs:
       - name: Install
         run: |
           python -m pip install --upgrade pip
+          # torch and torchvision must come from the same index: spandrel needs torchvision, and a PyPI
+          # torchvision next to a CPU-index torch fails with "operator torchvision::nms does not exist"
           if [ "$RUNNER_OS" = "Linux" ]; then
-            pip install torch --index-url https://download.pytorch.org/whl/cpu
+            pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
           else
-            pip install torch
+            pip install torch torchvision
           fi
           pip install spandrel pillow numpy tifffile
       - name: Tests (engine, colour, batch, preview)
         run: python test_enhance.py
       - name: Tests (interface text and window; the window part skips without tkinter or a display)
         run: python test_gui.py
+      - name: Tests (face recovery, with stand-ins for Apple Vision and GFPGAN)
+        run: python test_faces.py
       - name: Self-test
         run: python enhance.py --selftest

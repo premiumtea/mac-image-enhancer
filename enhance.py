@@ -316,10 +316,31 @@ def check_engine_options(engine, bits=8, device_pref="auto"):
 
 # ---- torch side (imports are lazy so the helpers above stay light) ----------
 
+_MPS_OK = None
+
+
+def mps_usable():
+    """Can the Metal GPU really be used? torch says MPS is "available" inside virtual machines (the GitHub
+    macOS runners, macOS guests under a hypervisor) where the first allocation then fails with "MPS backend
+    out of memory"; asking is_available() alone sent such machines to a GPU that does not work. So try a
+    tiny allocation, once, and fall back to the CPU when it fails."""
+    global _MPS_OK
+    if _MPS_OK is None:
+        import torch
+        _MPS_OK = False
+        if torch.backends.mps.is_available():
+            try:
+                torch.zeros(16, device="mps").cpu()
+                _MPS_OK = True
+            except Exception:
+                pass
+    return _MPS_OK
+
+
 def pick_device(prefer="auto"):
     import torch
     if prefer != "cpu":
-        if torch.backends.mps.is_available():
+        if mps_usable():
             return torch.device("mps")
         if torch.cuda.is_available():
             return torch.device("cuda")

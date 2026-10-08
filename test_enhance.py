@@ -749,7 +749,7 @@ try:
         assert next(E.get_engine(recipe, "gpu16", cpu).model.parameters()).dtype == torch.float16
 
         # gpu16 on a GPU (skipped on machines without one): close to fp32, never NaN
-        if torch.backends.mps.is_available():
+        if E.mps_usable():  # not is_available(): a virtual machine can report MPS and still fail to allocate
             a8, b8 = os.path.join(d, "g.png"), os.path.join(d, "g16.png")
             kw = dict(size="2", unit="in", dpi=100, recipe=recipe, device_pref="auto", tile=16)
             enhance(src, a8, engine="gpu", **kw)
@@ -976,9 +976,16 @@ try:
         assert not os.path.exists(fresh)
     print("progress/cancel ok")
 
-    if torch.backends.mps.is_available():
+    if E.mps_usable():
         assert E.pick_device("gpu").type == "mps" and E.pick_device("auto").type == "mps"
     assert E.pick_device("cpu").type == "cpu"
+
+    # MPS reported as available but unusable (a CI virtual machine): the CPU is chosen, not a crash later
+    with patched(E, "_MPS_OK", None), patched(torch.backends.mps, "is_available", lambda: True), \
+            patched(torch, "zeros", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("MPS backend out of memory"))):
+        assert not E.mps_usable() and E.pick_device("auto").type in ("cpu", "cuda")
+        assert E._MPS_OK is False  # remembered: the probe is not repeated on every call
+    E._MPS_OK = None  # the real answer is probed again on the next use
 except ImportError as e:
     print(f"progress/cancel: skipped ({e.name} missing)")
 
