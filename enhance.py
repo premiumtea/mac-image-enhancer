@@ -949,7 +949,7 @@ def run(ap, a, stop=None):
     """The body of main(). With `stop` (a threading.Event) it reports as JSON lines and honours cancel."""
     if a.selftest:
         import selftest
-        sys.exit(selftest.run(window=False))
+        sys.exit(selftest.run())
     if a.download_models:
         for name in weights.missing(a.models_dir, weights.GROUPS[a.download_models]):
             size = weights.FILES[name][2]

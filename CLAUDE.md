@@ -25,22 +25,23 @@ ICC kept for RGB, DPI tag written, `--preview` renders one region only, prints a
 bands (memory follows `--mem`, not print size) and TIFF is streamed to disk, batch (`image...
 -o DIR|template`) + `--resume`. `--engine gpu|gpu16|ane`. `color.py`: ICC/CMYK helpers (Pillow ImageCms).
 `weights.py`: models folder + pinned-SHA-256 downloads. `faces.py`: optional face recovery (Vision + GFPGAN). `i18n.py`: en/th/zh/fr interface text.
-`gui.py`: the Tk window. `selftest.py`: `--selftest` of any install or built app. `packaging/`: icon,
-licence collector, PyInstaller spec, `build_app.sh`, cask template. `pyproject.toml`, `README.md`,
+`app/`: the SwiftUI window (see Roadmap 6). `selftest.py`: `--selftest` of any install or built app. `packaging/`: icon,
+licence collector, PyInstaller spec for the engine (`engine.spec`), `build_swift_app.sh`, `gen_swift.py`, `Info.plist.in`, screenshot tools, cask template. `pyproject.toml`, `README.md`,
 `LICENSE` (MIT), `NOTICE`, `.github/workflows/`.
 `test_enhance.py`: stdlib + Pillow checks; torch/tifffile/CMYK-profile sections skip if missing.
-`test_gui.py`: interface text (no display needed) + the window driven with a tiny model (needs tkinter + display).
+`test_i18n.py`: interface text parity, Swift keys, generated Swift files up to date. `app/Tests`: Swift tests.
 `test_faces.py`: face recovery geometry, pasting, pipeline with stand-in detector/restorer; `MAC_IMAGE_ENHANCER_FACE_SAMPLE=portrait.jpg` also runs real Vision + GFPGAN.
 Verified on this Mac mini (M2 Pro): tests pass, MPS works, MPS vs CPU max diff 1/255.
 
 ## Run
     .venv/bin/python test_enhance.py
-    .venv/bin/python test_gui.py                       # text always; the window part needs tkinter + a display
-    .venv/bin/python gui.py                            # the window (python-tk@3.12 is installed)
+    .venv/bin/python test_i18n.py                      # interface text + generated Swift files
+    cd app && swift test                               # (MAC_IMAGE_ENHANCER_ENGINE="$PWD/../.venv/bin/python|$PWD/../enhance.py" for the real-engine tests)
+    cd app && swift run                                # the window, with the checkout's engine
     .venv/bin/python enhance.py --download-models      # fetch missing weights, SHA-256 checked (`faces` = the 349 MB GFPGAN)
     .venv/bin/python enhance.py in.jpg --size 40 --dpi 200 --faces -o out.png   # face recovery (read NOTICE first)
-    .venv/bin/python enhance.py --selftest             # also: "dist/Mac Image Enhancer.app/Contents/MacOS/mac-image-enhancer-gui" --selftest
-    PYTHONPATH=<dir with pyinstaller> packaging/build_app.sh   # dist/Mac Image Enhancer.app + .dmg
+    .venv/bin/python enhance.py --selftest             # also: "dist/Mac Image Enhancer.app/Contents/Resources/engine/mac-image-enhancer-engine" --selftest
+    PYTHONPATH=<dir with pyinstaller> packaging/build_swift_app.sh   # dist/Mac Image Enhancer.app + .dmg (SKIP_ENGINE=1: window only)
     .venv/bin/python enhance.py in.jpg --size 20x15 --unit cm --dpi 150 -o out.png
     .venv/bin/python enhance.py in.jpg --size 20x15 --model general --denoise 0.5 -o out.png
     .venv/bin/python enhance.py in.jpg --size 20x15 --bits 16 -o out.tif
@@ -85,7 +86,7 @@ from github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.p
    exactly representable boxes, e.g. scale 2/4/0.5, give 0 differences). Measured, real model:
    100 cm @150 dpi from a 1500x1000 source: full 20.0 s, preview 5.5 s (~2-3 s of that is
    torch import + model load), crop differs by <=1 level in 0.006% of samples.
-   GUI region *selection* (click) is in `gui.py` (item 6); the CLI takes a centre + size.
+   GUI region *selection* (click/drag) is in the SwiftUI app (item 6); the CLI takes a centre + size.
    **Face recovery** (`faces.py`, `--faces`, "Restore faces" in the window). Approved by the user
    2026-10-08 as opt-in with the licence conditions disclosed; installed pyobjc-framework-Vision
    (~8 MB) into .venv and downloaded GFPGANv1.4.pth (348,632,874 B, sha256 e2cd4703...be5ad, pinned in
@@ -224,41 +225,48 @@ from github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.p
    exactly, = what render runs, tested), cancel raises InterruptedError and cleans up, `run_batch(on_job=)`
    where cancel stops the whole batch, `plan_print` (size fields -> px, crop, passes; shared by CLI and
    GUI), `--device gpu`.
-   `gui.py` (Tk 9.1; `brew install python-tk@3.12` was approved and run 2026-10-08, which also moved
-   python@3.12 to 3.12.15). **Redesigned 2026-10-08 for ordinary end users** (the user asked for a window that is
-   nice to look at and use, to ship as a package): the stage on the left is empty (glyph + "Choose a picture"),
-   the picture with the yellow preview marker (a click = a `--preview` centre), or the before/after comparison
-   of the real preview at 100% with a draggable line; the right panel is three numbered steps: 1 paper size
-   (chips A4..A0 and 24x36", or Custom; the sheet turns to the picture's orientation; typing a width makes the
-   height follow the picture until a height is typed, otherwise the picture is cropped to fit), 2 quality
-   (Standard/Good/Fine = 150/200/300 DPI, plus a coloured pill telling how far the picture is stretched:
-   <=1x sharp, <=4x good, <=8x soft, else "bigger original would help"), 3 options (face recovery switch with its
-   warning; Advanced window: picture type + noise removal, processor, DPI, 16-bit, CMYK profile, TIFF compress).
-   Bottom bar: result size, progress + time left (extrapolated after 4 s), Preview, Save (default button).
-   Save asks for a file name (one picture) or a folder (several); 16-bit/CMYK force `.tif` and say so;
-   "Show in Finder" afterwards. Also: menu bar + shortcuts (⌘O/⌘S/⌘P), About, Finder "Open With"/Dock drops
-   via `::tk::mac::OpenDocument` (Info.plist declares the image types), argv paths, first-run language from
-   macOS (`defaults read -g AppleLanguages`), settings in Application Support (validated on load).
-   Tk has no drag-and-drop, hence the Dock drop + Open button. In-stage buttons and the switch are drawn on
-   canvases: ttk buttons on the dark canvas drew a light box around themselves, and the system's own
-   "Switch.TCheckbutton"/"Accent.TButton" styles are not usable here (Save uses `default="active"`).
-   System secondary-text colours come out plain white through `winfo_rgb` (alpha ignored): greys and pills are
-   explicit per light/dark. `i18n.py` strings are our own; th/zh/fr are drafts for native review (tests check
-   key + placeholder parity and that gui.py uses every string). Status text is kept as keys so it follows a
-   language change. The window is never shorter than the steps need in the current language (`fit_window`).
-   **How the window is looked at:** Tk windows can be created on this Mac mini and `test_gui.py` drives the real
-   window (preview, compare, single/batch save, 16-bit, cancel, weights prompt, faces, advanced, settings, all
-   languages), but `screencapture` and CGWindowList capture both fail here (no display). So
-   `.github/workflows/screenshots.yml` (manual: Actions > Screenshots) starts the window on a macos-14 runner,
-   runs `packaging/screenshots.py` (real weights downloaded in the job, made-up landscape as the picture) and uploads
-   PNGs in light and dark mode: `gh workflow run screenshots.yml`, then `gh run download <id> -n screenshots`.
-   That found real bugs the geometry audit could not: panel width changing with the language (grid_propagate
-   on a frame whose children are packed), the last button cut off in French with the face note open, halos
-   around ttk buttons. Not yet looked at: the built .app itself (release.yml now has a manual run that
-   launches it and screenshots it).
+   **The window is a native SwiftUI app (`app/`, SwiftPM), rebuilt 2026-10-08** after the user rejected two Tk designs
+   as dated ("เชย") and chose design direction A (Claude Design artifact
+   https://claude.ai/artifact/6mhSMjXdbxPNNwjNeJ1ATz, "A · Glass") and then, between a native app and a web view,
+   the native one ("แอป SwiftUI เนทีฟ"). The old Tk `gui.py`, `test_gui.py`, the Tk screenshot tooling and the
+   PyInstaller .app spec were deleted. Architecture: SwiftUI front end + the Python engine as a child process.
+   - Liquid Glass: `Theme.swift` (`liquidGlass(_:)` uses `glassEffect` on macOS 26, `.ultraThinMaterial` before;
+     `glassButton`), forced dark, the picture blurred into a glow behind everything (`AmbientBackground`). Needs the
+     Xcode 26 SDK to build (`#available(macOS 26.0, *)` keeps macOS 13+ working; the fallback look is NOT checked).
+   - Layout (design A): left column = top pill (file name, Change), stage (empty state / picture with the draggable
+     preview frame / before-after compare with a draggable line, true 100% via backingScaleFactor), bottom capsule
+     (result size, Preview, Save; progress + ETA + Cancel while working; "Show in Finder" after); right glass inspector =
+     size (editable big numbers, paper chips, unit menu, crop note), quality (Standard/Good/Fine = 150/200/300 DPI,
+     stretch verdict + gauge), faces switch (+ strength + warning), Advanced sheet (picture type, denoise, processor,
+     DPI, 16-bit, CMYK profile, TIFF compress). Drag and drop onto the window, Open With / Dock drops
+     (`application(_:open:)`, Info.plist document types), menus (⌘O/⌘S/⌘P, Language, About with a link to NOTICE),
+     language from macOS on first run, settings in UserDefaults (validated).
+   - `AppModel` holds all state; status text is kept as keys so it follows a language change. `PrintMath` is the
+     Swift port of `plan_print`/`aspect_crop_box`/`plan_passes` (Python rounds halves to even: `.toNearestOrEven`);
+     `packaging/gen_swift.py` generates ~90 test cases from Python and `Strings.generated.swift` from `i18n.py`
+     (`--check` in CI and in `test_i18n.py`). The busy phase must be set synchronously before the async task starts
+     (a second click otherwise started a second engine; found by `FlowTests`).
+   - Engine interface (`enhance.py`): `--json` (one JSON object per line on stdout: job / progress / download / done /
+     error / cancelled; SIGTERM = clean cancel, exit 130, no half-written file), `--info` (version, coreml, vision,
+     missing weight files and bytes per group), `--preview-plain PNG` (the plain Lanczos enlargement of the preview
+     area, the "before"). The app finds the engine via `$MAC_IMAGE_ENHANCER_ENGINE` ("python|enhance.py"), the bundle
+     (`Contents/Resources/engine/mac-image-enhancer-engine`), or a checkout's `.venv` above the binary.
+   - Bugs the new work found in old code: `aspect_crop_box` gave an empty crop (divide by zero) for a 2 px wide
+     picture printed 5:1 (now >= 1 px).
+   - Tests: `swift test` (24+ tests incl. `FlowTests`: Preview, changing a setting mid-preview, Save, 16-bit renamed to
+     .tif, Cancel a huge print, a failing job, all through the real engine with a tiny made-up model),
+     `test_i18n.py`, `test_enhance.py` (incl. the JSON interface). CI: `ci.yml` has a `swift` job on macos-26.
+   - **Seeing it:** the Mac mini has no display (Tk/SwiftUI windows can be created, but screencapture and
+     CGWindowList capture fail), so `.github/workflows/app-screenshots.yml` (manual) builds the app on macos-26,
+     starts it per scenario (`MAC_IMAGE_ENHANCER_DEMO=empty|source|compare|faces|advanced|saving`, `Demo.swift`) and
+     photographs the window with `screencapture -l` (`packaging/screenshots_app.py`): `gh workflow run
+     app-screenshots.yml`, then `gh run download <id> -n app-screenshots`. That found: black before/after images (a
+     lazily decoded image whose file was deleted), a focused number field, inactive-looking controls when the app is not
+     frontmost (the app calls `activate`), the phantom Custom chip (a text field writes its text back on blur), the
+     French summary truncated. The runner screen is small (about 1024 x 700): the window is fitted to it.
    Packaging: `pyproject.toml` (setuptools >= 77, flat `py-modules`, scripts `mac-image-enhancer` and
-   `mac-image-enhancer-gui`, extra `ane`; the wheel is 40 KB and holds only the modules, LICENSE and NOTICE;
-   installed outside the checkout it uses the Application Support models dir). `packaging/build_app.sh`:
+   (the `mac-image-enhancer-gui` script went with the Tk window), extra `ane`; the wheel is 40 KB and holds only the modules, LICENSE and NOTICE;
+   installed outside the checkout it uses the Application Support models dir). `packaging/build_swift_app.sh` (replaces the PyInstaller-only `build_app.sh`): SwiftPM release build + `engine.spec` (PyInstaller onedir of enhance.py) copied to Contents/Resources/engine + `Info.plist.in` + ad hoc codesign + .dmg. Older notes on the Tk-era bundle follow:
    icon (own logo, `make_icon.py`) + `THIRD_PARTY_LICENSES.txt` (`collect_licenses.py`, from installed
    metadata) -> PyInstaller (`mac_image_enhancer.spec`) -> ad hoc codesign -> .dmg. Result: app 557 MB, dmg
    207 MB (no weights, no coremltools). The bundle shipped broken at first: `selftest.py` found
@@ -287,6 +295,6 @@ from github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.p
   `mac-image-enhancer`, bundle id `org.mac-image-enhancer.MacImageEnhancer`). The local folder is still
   `/Users/wolf/mac-enhancer` (the .venv has absolute paths: rename it only together with a new venv).
   `.gitignore` excludes .venv, models, build/, dist/, images and test outputs. Commits use the user's own git identity.
-- No display on this Mac: Tk windows run (test_gui.py) but cannot be photographed; use the screenshots workflow (see the gui.py paragraph).
+- No display on this Mac: windows can be created but not photographed; use the app-screenshots workflow (see Roadmap 6).
 - CI timing trap: a test that presses Cancel after a delay races a fast CPU; press it from inside the first progress report.
-- dist/ (app + dmg, ~760 MB) is gitignored build output, reproducible with packaging/build_app.sh.
+- dist/ (app + dmg, ~760 MB) is gitignored build output, reproducible with packaging/build_swift_app.sh.

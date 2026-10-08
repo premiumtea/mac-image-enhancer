@@ -1,8 +1,8 @@
-"""Does this installation really work? Used by `enhance.py --selftest`, `gui.py --selftest`,
-and to check a built .app, where a missing library would otherwise only show up in use.
+"""Does this installation really work? Used by `enhance.py --selftest` (also the engine inside the .app:
+`mac-image-enhancer-engine --selftest`), where a missing library would otherwise only show up in use.
 
-Imports every dependency, runs a real (tiny, randomly weighted) model through the whole
-pipeline to a TIFF and a PNG, and builds the window. No model files and no network needed.
+Imports every dependency and runs a real (tiny, randomly weighted) model through the whole
+pipeline to a TIFF and a PNG. No model files and no network needed.
 """
 import importlib
 import os
@@ -10,7 +10,7 @@ import sys
 import tempfile
 
 
-def run(window=True, out=print):
+def run(out=print):
     """Run the checks, printing one line each -> exit code (0 = all passed)."""
     failures = []
 
@@ -114,31 +114,11 @@ def run(window=True, out=print):
         assert a.shape == (512, 512, 3) and a.std() > 1 and np.array_equal(a, b), "GFPGAN output flat or not repeatable"
         return f"Vision request ran; GFPGAN restored a crop on the {dev}, the same twice"
 
-    def gui_window():
-        import tkinter as tk
-
-        import gui
-        root = tk.Tk()
-        root.withdraw()
-        try:
-            app = gui.App(root, settings_path=os.path.join(tempfile.mkdtemp(), "s.json"))
-            root.update()
-            assert app.root.title() == "Mac Image Enhancer"
-            app.close()
-        finally:
-            try:
-                root.destroy()
-            except Exception:
-                pass
-        return f"Tk {tk.TkVersion}"
-
     check("dependencies import", versions)
     check("pipeline on a tiny model", pipeline)
     check("models folder", models_dir)
     check("real model files", real_weights)
     check("face recovery", faces_stack)
-    if window:
-        check("window builds", gui_window)
     out("selftest passed" if not failures else f"selftest FAILED: {', '.join(failures)}")
     return 1 if failures else 0
 

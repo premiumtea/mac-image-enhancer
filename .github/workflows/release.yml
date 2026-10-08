@@ -1,8 +1,9 @@
-# Builds the .app and .dmg. Two ways to run it:
+# Builds "Mac Image Enhancer.app" (the SwiftUI window with the Python engine inside it) and a .dmg. Two ways to run it:
 #  - push a version tag (git tag v0.1.0 && git push --tags): builds, then publishes a GitHub release
-#  - Actions > Release > Run workflow: builds and checks only; the .dmg and a screenshot of the built
-#    app come back as the "release-build" artifact, nothing is published
-# The app is ad-hoc signed only. For a signed and notarized release, add the Developer ID
+#  - Actions > Release > Run workflow: builds and checks only; the .dmg and a screenshot of the built app come back
+#    as the "release-build" artifact, nothing is published
+# macOS 26 runner: the Liquid Glass APIs need the Xcode 26 SDK (the app still runs on macOS 13 and later, with frosted
+# material instead of glass). The app is ad-hoc signed only. For a signed and notarized release, add the Developer ID
 # certificate and notarytool steps here (see README: "The .app and .dmg").
 name: Release
 on:
@@ -12,36 +13,39 @@ on:
 
 jobs:
   dmg:
-    runs-on: macos-14
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"   # the python.org build ships with Tcl/Tk, which the app bundles
+          python-version: "3.12"
       - name: Install
         run: |
           python -m pip install --upgrade pip
-          pip install torch torchvision spandrel pillow numpy tifffile pyinstaller pyobjc-framework-Vision
+          pip install torch torchvision spandrel pillow numpy tifffile pyinstaller pyobjc-framework-Vision pyobjc-framework-Quartz
       - name: Build
-        run: PYTHON=python ./packaging/build_app.sh
-      - name: Check the built app runs
-        run: "dist/Mac\\ Image\\ Enhancer.app/Contents/MacOS/mac-image-enhancer-gui --selftest"
+        run: PYTHON=python ./packaging/build_swift_app.sh
+      - name: Check the engine inside the app runs
+        run: "dist/Mac\\ Image\\ Enhancer.app/Contents/Resources/engine/mac-image-enhancer-engine --selftest"
       - name: Look at the built app (start it as a user would, take a screenshot)
         run: |
           mkdir -p shots
-          open "dist/Mac Image Enhancer.app"
-          sleep 30
-          screencapture -x shots/built-app.png
-          pkill -f mac-image-enhancer-gui || true
+          python packaging/sample_picture.py shots-input.jpg
+          export MAC_IMAGE_ENHANCER_MODELS="$PWD/models"   # where the bundled engine looks for the model files fetched here
+          python enhance.py --download-models photo
+          # the real thing: the app finds its bundled engine
+          python packaging/screenshots_app.py "dist/Mac Image Enhancer.app" shots "$PWD/shots-input.jpg"
       - name: Checksum
         run: shasum -a 256 dist/*.dmg | tee dist/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: release-build
           path: |
             dist/*.dmg
             dist/SHA256SUMS.txt
             shots/*.png
+            shots/*.log
       - uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:

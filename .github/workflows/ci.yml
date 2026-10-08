@@ -31,8 +31,8 @@ jobs:
           pip install spandrel pillow numpy tifffile
       - name: Tests (engine, colour, batch, preview)
         run: python test_enhance.py
-      - name: Tests (interface text and window; the window part skips without tkinter or a display)
-        run: python test_gui.py
+      - name: Tests (interface text, and the Swift files generated from it)
+        run: python test_i18n.py
       - name: Tests (face recovery, with stand-ins for Apple Vision and GFPGAN)
         run: python test_faces.py
       - name: Self-test

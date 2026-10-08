@@ -68,8 +68,13 @@ struct MacImageEnhancerApp: App {
     }
 
     private func showAbout(_ model: AppModel) {
-        let credits = NSAttributedString(string: model.t("about_body", ["version": AppInfo.version]).components(separatedBy: "\n\n").dropFirst().joined(separator: "\n\n"),
-                                         attributes: [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor.labelColor])
+        let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor.labelColor]
+        let body = model.t("about_body", ["version": AppInfo.version]).components(separatedBy: "\n\n").dropFirst().joined(separator: "\n\n")
+        let credits = NSMutableAttributedString(string: body, attributes: attrs)
+        if let notice = Bundle.main.url(forResource: "NOTICE", withExtension: nil) {  // the licences of what this is built on
+            credits.append(NSAttributedString(string: "\n\n", attributes: attrs))
+            credits.append(NSAttributedString(string: model.t("about_licenses"), attributes: attrs.merging([.link: notice]) { $1 }))
+        }
         NSApp.orderFrontStandardAboutPanel(options: [.applicationName: "Mac Image Enhancer", .credits: credits])
     }
 }

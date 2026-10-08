@@ -36,12 +36,9 @@ Source = "https://github.com/premiumtea/mac-image-enhancer"
 [project.scripts]
 mac-image-enhancer = "enhance:main"
 
-[project.gui-scripts]
-mac-image-enhancer-gui = "gui:main"
-
 [tool.setuptools]
 # flat modules, no package directory: models/ and tests stay out of the wheel
-py-modules = ["enhance", "color", "weights", "i18n", "gui", "selftest", "faces"]
+py-modules = ["enhance", "color", "weights", "i18n", "selftest", "faces"]
 
 [tool.setuptools.dynamic]
 version = {attr = "enhance.__version__"}

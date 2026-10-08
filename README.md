@@ -15,15 +15,20 @@ PNG, JPEG, 16-bit TIFF, or CMYK TIFF through your printer's ICC profile.
   colours, in the preview and the print alike. It invents detail, so read "Good to know" first.
 - **English, Thai, Chinese and French** interface (drafts of the last three; corrections welcome).
 
+The window is a native SwiftUI app. On macOS 26 it uses Apple's **Liquid Glass**: the controls float as
+glass over a glow of your own picture. On macOS 13 to 15 it falls back to frosted material (that look
+has not been checked on those systems yet). The enlarging itself is the Python engine in this repository,
+which the app runs as a command-line tool, so everything below works without the window too.
+
 Apple Silicon only. Developed and tested on an M2 Pro Mac mini (macOS 26); the model runs on
 the GPU (MPS), optionally on the Neural Engine, with a CPU fallback.
 
 ## Install
 
-There is no published release yet. From a checkout:
+There is no published release yet. From a checkout (the window needs Xcode 26 to build; the command line
+needs only Python):
 
 ```sh
-brew install python-tk@3.12                 # only for the window; the command line does not need it
 /opt/homebrew/bin/python3.12 -m venv .venv
 .venv/bin/pip install -e .                  # torch, spandrel, pillow, numpy, tifffile
 .venv/bin/pip install coremltools           # optional: --engine ane (Neural Engine, about 3x faster)
@@ -36,17 +41,17 @@ The weights are never shipped with this project. They are downloaded from the Re
 releases into `models/` (or `~/Library/Application Support/mac-image-enhancer/models` for an
 installed copy). The window offers to download them the first time they are needed.
 
-`packaging/build_app.sh` builds `Mac Image Enhancer.app` and a `.dmg` (see below).
+`packaging/build_swift_app.sh` builds `Mac Image Enhancer.app` and a `.dmg` (see below).
 
 ## Use
 
-The window (three steps, no settings form):
+The window (three steps, no settings form). From a checkout, with the venv above and Xcode 26:
 
 ```sh
-.venv/bin/mac-image-enhancer-gui
+cd app && swift run          # finds the engine in ../.venv; or build the whole app with packaging/build_swift_app.sh
 ```
 
-1. **Choose a picture** (or drop pictures on the app icon, or use Open With in Finder), then pick a **paper
+1. **Choose a picture** (or drop it on the window or the app icon, or use Open With in Finder), then pick a **paper
    size** (A4 to A0, 24×36″, or your own width and height).
 2. Pick a **print quality**. A coloured note tells you in plain words whether the picture will stay sharp at that
    size, and how far it is being stretched.
@@ -108,8 +113,11 @@ mac-image-enhancer portrait.jpg --size 40 --dpi 200 --faces -o print.png        
 
 ```sh
 .venv/bin/pip install pyinstaller
-packaging/build_app.sh          # writes dist/Mac Image Enhancer.app and dist/MacImageEnhancer-<version>-arm64.dmg
+packaging/build_swift_app.sh    # writes dist/Mac Image Enhancer.app and dist/MacImageEnhancer-<version>-arm64.dmg
 ```
+
+The app is the SwiftUI window (built with Xcode 26) with the Python engine, packed by PyInstaller, inside it
+(`Contents/Resources/engine`). `.github/workflows/release.yml` does the same on a GitHub macOS 26 runner.
 
 The app is signed **ad hoc**, which is what Apple Silicon needs to run a locally built app. It is
 not signed with a Developer ID and not notarized, so a copy downloaded from the internet is
@@ -117,16 +125,24 @@ stopped by Gatekeeper the first time. How to get past it (we have only tested th
 step on every macOS version): on macOS 14 and earlier, right-click the app → Open → Open; on
 macOS 15 and later, open the app once, then System Settings → Privacy & Security → scroll down →
 **Open Anyway**. A signed, notarized release, which opens with a double click, needs an Apple
-Developer account (`SIGN_ID=... packaging/build_app.sh`, then notarytool).
+Developer account (`SIGN_ID=... packaging/build_swift_app.sh`, then notarytool).
 `packaging/homebrew/mac-image-enhancer.rb` is an untested cask template for when a release exists.
 
 ## Development
 
 ```sh
 .venv/bin/python test_enhance.py    # the engine, colour, batches, preview (add coremltools to test Core ML)
-.venv/bin/python test_gui.py        # interface text; the window part needs tkinter and a display
+.venv/bin/python test_i18n.py       # interface text in four languages, and the Swift files generated from it
 .venv/bin/python test_faces.py      # face recovery; MAC_IMAGE_ENHANCER_FACE_SAMPLE=portrait.jpg also runs the real Vision + GFPGAN
+cd app && swift test                # the window's logic, and its flows through the real engine (a tiny made-up model)
 ```
+
+The Swift code must agree with the Python side on a few things, so two Swift files are generated:
+`python3 packaging/gen_swift.py` (the interface text from `i18n.py`, and print-size test cases from
+`enhance.plan_print`); `python3 packaging/gen_swift.py --check` fails if they are out of date.
+
+The Mac this was developed on has no display, so the window is looked at through screenshots taken on a GitHub
+macOS 26 runner: Actions > App screenshots > Run workflow.
 
 `CLAUDE.md` holds the design notes, measurements and known limits of every part.
 

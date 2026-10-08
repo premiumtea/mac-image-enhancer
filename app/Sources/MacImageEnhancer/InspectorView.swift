@@ -122,6 +122,10 @@ struct SizeSection: View {
                 }
                 Chip(label: model.t("preset_custom"), selected: model.preset == "custom") { model.selectPreset("custom") }
             }
+            if let plan = model.plan, let s = model.sourceSize, (plan.cropSize.w, plan.cropSize.h) != (s.w, s.h) {
+                Text(verbatim: model.t("crop_note")).font(.system(size: 12)).foregroundStyle(Theme.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 }
