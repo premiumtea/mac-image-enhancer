@@ -25,8 +25,11 @@ the GPU (MPS), optionally on the Neural Engine, with a CPU fallback.
 
 ## Install
 
-There is no published release yet. From a checkout (the window needs Xcode 26 to build; the command line
-needs only Python):
+**The app:** download the `.dmg` from the [Releases page](https://github.com/premiumtea/mac-image-enhancer/releases),
+open it and drag the app to Applications. It is not signed with a Developer ID, so macOS stops it the first time:
+see "The .app and .dmg" below for how to open it. The app offers to download the AI model files when it first needs them.
+
+**From a checkout** (the window needs Xcode 26 to build; the command line needs only Python):
 
 ```sh
 /opt/homebrew/bin/python3.12 -m venv .venv

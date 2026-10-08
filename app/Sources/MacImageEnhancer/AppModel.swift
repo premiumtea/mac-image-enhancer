@@ -54,6 +54,8 @@ final class AppModel: ObservableObject {
     let l10n: L10n
     private let defaults: UserDefaults
     var engineCommand: EngineCommand?
+    /// Extra engine arguments appended to every job (for tests: `--tile 16` makes even a small print take many steps).
+    var extraEngineArguments: [String] = []
 
     // MARK: the choices (saved between runs)
     @Published var preset: String
@@ -302,6 +304,7 @@ final class AppModel: ObservableObject {
         if bits16 { a += ["--bits", "16"] }
         if let c = cmykPath { a += ["--cmyk-profile", c] }
         if compress { a += ["--tiff-compress"] }
+        a += extraEngineArguments
         let needsAI = (plan?.passes ?? 0) > 0
         return JobOptions(args: a, needsAI: needsAI, groups: needsAI ? [model.rawValue] + (faces ? ["faces"] : []) : [], tiff: bits16 || cmykPath != nil)
     }

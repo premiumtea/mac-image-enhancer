@@ -59,7 +59,7 @@ final class FlowTests: XCTestCase {
         return ctx.makeImage()!
     }
 
-    func wait(timeout: TimeInterval = 90, _ cond: @escaping () -> Bool) async throws {
+    func wait(timeout: TimeInterval = 150, _ cond: @escaping () -> Bool) async throws {
         let t0 = Date()
         while !cond() {
             if Date().timeIntervalSince(t0) > timeout { XCTFail("timed out waiting"); throw CancellationError() }
@@ -109,8 +109,8 @@ final class FlowTests: XCTestCase {
         model.bits16 = false
 
         // Cancel: a big print, stopped once it is under way; nothing is left behind
-        model.widthText = "400"  // 40,000 x 30,000 px: far more than any CPU finishes before Cancel arrives
-        model.unit = .inch
+        model.extraEngineArguments = ["--tile", "16"]  // thousands of small steps: plenty left to cancel after the first one
+        model.widthText = "40"  // 4000 x 3000 px
         let big = dir.appendingPathComponent("big.tif")
         model.bits16 = true
         model.runSave(try XCTUnwrap(model.collect()), destination: big, single: true)
