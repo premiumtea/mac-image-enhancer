@@ -104,6 +104,9 @@ final class AppModel: ObservableObject {
     let tempDir: URL
 
     var busy: Bool { phase != .idle }
+    /// What the running (or last) engine said on stderr, for tests and bug reports.
+    var engineStderrTail: String { current?.stderrTail ?? lastStderrTail }
+    private var lastStderrTail = ""
     var backingScale: CGFloat { NSScreen.main?.backingScaleFactor ?? 2 }
 
     // MARK: setup
@@ -327,6 +330,7 @@ final class AppModel: ObservableObject {
             }
         }
         let code = await run.waitUntilExit()
+        lastStderrTail = run.stderrTail
         current = nil
         switch terminal {
         case .done(let outputs, let skipped, let failed): return .done(outputs, skipped: skipped, failed: failed)

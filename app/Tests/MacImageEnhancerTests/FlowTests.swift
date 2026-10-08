@@ -34,7 +34,7 @@ final class FlowTests: XCTestCase {
         try NSBitmapImageRep(cgImage: noisy(40, 30)).representation(using: .png, properties: [:])!.write(to: pic)
         model = AppModel(l10n: L10n(lang: "en"), defaults: UserDefaults(suiteName: "flow-\(UUID().uuidString)")!, engine: cmd, loadInfo: false)
         model.load([pic])
-        try await wait { self.model.source != nil }
+        try await wait("the picture to open") { self.model.source != nil }
         model.preset = "custom"
         model.widthText = "2"
         model.unit = .inch
@@ -59,10 +59,13 @@ final class FlowTests: XCTestCase {
         return ctx.makeImage()!
     }
 
-    func wait(timeout: TimeInterval = 150, _ cond: @escaping () -> Bool) async throws {
+    func wait(_ what: String, timeout: TimeInterval = 150, _ cond: @escaping () -> Bool) async throws {
         let t0 = Date()
         while !cond() {
-            if Date().timeIntervalSince(t0) > timeout { XCTFail("timed out waiting"); throw CancellationError() }
+            if Date().timeIntervalSince(t0) > timeout {
+                XCTFail("timed out after \(Int(timeout)) s waiting for \(what): phase=\(model.phase) progress=\(model.progress) status=\(model.statusText) engine said: \(model.engineStderrTail)")
+                throw CancellationError()
+            }
             try await Task.sleep(nanoseconds: 50_000_000)
         }
     }
@@ -74,7 +77,7 @@ final class FlowTests: XCTestCase {
         // Preview: the real result next to the plain enlargement, the size of the whole (small) print
         model.startPreview()
         XCTAssertEqual(model.phase, .preview)
-        try await wait { self.model.phase == .idle }
+        try await wait("the first preview to finish") { self.model.phase == .idle }
         XCTAssertTrue(model.compare, model.statusText)
         XCTAssertEqual(model.preview?.result.size, NSSize(width: 200, height: 150))
         XCTAssertEqual(model.preview?.plain.size, NSSize(width: 200, height: 150))
@@ -85,7 +88,7 @@ final class FlowTests: XCTestCase {
         XCTAssertFalse(model.compare)
         model.startPreview()
         model.dpi = 100
-        try await wait { self.model.phase == .idle }
+        try await wait("the stale preview to finish") { self.model.phase == .idle }
         XCTAssertFalse(model.compare)
 
         // Save: one picture, to the file a person chose; 16-bit forces TIFF and says so
@@ -93,7 +96,7 @@ final class FlowTests: XCTestCase {
         let o = try XCTUnwrap(model.collect())
         model.runSave(o, destination: out, single: true)
         XCTAssertEqual(model.phase, .save)
-        try await wait { self.model.phase == .idle }
+        try await wait("the save to finish") { self.model.phase == .idle }
         XCTAssertEqual(model.status.key, "done", model.statusText)
         XCTAssertEqual(model.lastOutput, out)
         let img = NSBitmapImageRep(data: try Data(contentsOf: out))
@@ -102,7 +105,7 @@ final class FlowTests: XCTestCase {
         model.bits16 = true
         let deep = dir.appendingPathComponent("deep.png")
         model.runSave(try XCTUnwrap(model.collect()), destination: deep, single: true)
-        try await wait { self.model.phase == .idle }
+        try await wait("the 16-bit save to finish") { self.model.phase == .idle }
         XCTAssertEqual(model.status.key, "tiff_renamed")
         XCTAssertTrue(FileManager.default.fileExists(atPath: dir.appendingPathComponent("deep.tif").path))
         XCTAssertFalse(FileManager.default.fileExists(atPath: deep.path))
@@ -114,9 +117,9 @@ final class FlowTests: XCTestCase {
         let big = dir.appendingPathComponent("big.tif")
         model.bits16 = true
         model.runSave(try XCTUnwrap(model.collect()), destination: big, single: true)
-        try await wait { self.model.phase == .save && self.model.progress > 0 }
+        try await wait("the big print to get under way") { self.model.phase == .save && self.model.progress > 0 }
         model.cancel()
-        try await wait(timeout: 60) { self.model.phase == .idle }
+        try await wait("the cancel to take effect", timeout: 60) { self.model.phase == .idle }
         XCTAssertEqual(model.status.key, "cancelled", model.statusText)
         XCTAssertFalse(FileManager.default.fileExists(atPath: big.path))
         XCTAssertTrue(((try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []).allSatisfy { !$0.hasSuffix(".partial") })
@@ -126,7 +129,7 @@ final class FlowTests: XCTestCase {
         model.widthText = "2"
         try FileManager.default.removeItem(at: model.images[0])
         model.startPreview()
-        try await wait { self.model.phase == .idle }
+        try await wait("the failing preview to finish") { self.model.phase == .idle }
         XCTAssertTrue(model.status.isError)
     }
 }
