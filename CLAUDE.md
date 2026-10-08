@@ -286,6 +286,10 @@ from github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.p
    `--selftest`, and the app started from the dmg finding its bundled engine and running a real preview (GPU). NOT checked:
    Gatekeeper's behaviour on another Mac (the app is ad hoc signed, not notarized, so the first launch needs Open Anyway), the
    look on macOS 13-15, a clean Mac without Xcode/Python.
+   History was rewritten once, 2026-10-08, with the user's go-ahead ("ล้างเลย"): `app/.build` (2,600 build files, 165 MB) had been
+   committed by mistake and pushed. All commit hashes changed (v0.1.0 now points at d013320), main was force-pushed, the Release
+   workflow was disabled while the tag moved so the published .dmg was not rebuilt. Old objects stay fetchable on GitHub by their
+   SHA until GitHub collects them (not in our hands). A backup bundle was kept outside the repo. `.gitignore` covers `.build/`.
    **Open (needs the user):** an Apple Developer ID for signing + notarization (until then a downloaded app needs Open Anyway);
    the bundle id `org.mac-image-enhancer.MacImageEnhancer` is a placeholder; the cask template (`packaging/homebrew/`) needs this
    release's sha256 and an untested install; the app has no `--engine ane` (coremltools not bundled, ~100 MB, untested);
