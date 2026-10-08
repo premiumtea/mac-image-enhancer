@@ -1,4 +1,4 @@
-# Mac Enhancer
+# Mac Image Enhancer
 
 An AI print-size image upscaler for Apple Silicon Macs. Tell it how large the print is and at
 what DPI; it works out the pixels (`pixels = inches × DPI`), enlarges the picture with
@@ -28,34 +28,34 @@ brew install python-tk@3.12                 # only for the window; the command l
 .venv/bin/pip install -e .                  # torch, spandrel, pillow, numpy, tifffile
 .venv/bin/pip install coremltools           # optional: --engine ane (Neural Engine, about 3x faster)
 .venv/bin/pip install pyobjc-framework-Vision   # optional: --faces (Apple Vision finds the faces)
-.venv/bin/mac-enhancer --download-models    # one time: the Real-ESRGAN weights, checked against a SHA-256
-.venv/bin/mac-enhancer --download-models faces  # optional, 349 MB: GFPGAN for --faces (read its licence note first)
+.venv/bin/mac-image-enhancer --download-models    # one time: the Real-ESRGAN weights, checked against a SHA-256
+.venv/bin/mac-image-enhancer --download-models faces  # optional, 349 MB: GFPGAN for --faces (read its licence note first)
 ```
 
 The weights are never shipped with this project. They are downloaded from the Real-ESRGAN
-releases into `models/` (or `~/Library/Application Support/mac-enhancer/models` for an
+releases into `models/` (or `~/Library/Application Support/mac-image-enhancer/models` for an
 installed copy). The window offers to download them the first time they are needed.
 
-`packaging/build_app.sh` builds `Mac Enhancer.app` and a `.dmg` (see below).
+`packaging/build_app.sh` builds `Mac Image Enhancer.app` and a `.dmg` (see below).
 
 ## Use
 
 The window:
 
 ```sh
-.venv/bin/mac-enhancer-gui
+.venv/bin/mac-image-enhancer-gui
 ```
 
 The command line:
 
 ```sh
-mac-enhancer photo.jpg --size 60x40 --unit cm --dpi 200 -o print.png
-mac-enhancer photo.jpg --size 60 --dpi 200 --preview 0.5,0.5 -o look.png    # just a 100% crop of the middle
-mac-enhancer shots/*.jpg --size 30x20 --dpi 300 -o prints/ --resume          # a batch, resumable
-mac-enhancer photo.jpg --size 60 --dpi 300 --bits 16 -o print.tif            # 16-bit
-mac-enhancer photo.jpg --size 60 --dpi 300 --cmyk-profile printer.icc -o print.tif
-mac-enhancer logo.png --size 40 --model general --denoise 0.3 -o sign.png    # text and graphics
-mac-enhancer portrait.jpg --size 40 --dpi 200 --faces -o print.png           # restore the faces too
+mac-image-enhancer photo.jpg --size 60x40 --unit cm --dpi 200 -o print.png
+mac-image-enhancer photo.jpg --size 60 --dpi 200 --preview 0.5,0.5 -o look.png    # just a 100% crop of the middle
+mac-image-enhancer shots/*.jpg --size 30x20 --dpi 300 -o prints/ --resume          # a batch, resumable
+mac-image-enhancer photo.jpg --size 60 --dpi 300 --bits 16 -o print.tif            # 16-bit
+mac-image-enhancer photo.jpg --size 60 --dpi 300 --cmyk-profile printer.icc -o print.tif
+mac-image-enhancer logo.png --size 40 --model general --denoise 0.3 -o sign.png    # text and graphics
+mac-image-enhancer portrait.jpg --size 40 --dpi 200 --faces -o print.png           # restore the faces too
 ```
 
 | Option | What it does |
@@ -99,21 +99,21 @@ mac-enhancer portrait.jpg --size 40 --dpi 200 --faces -o print.png           # r
 
 ```sh
 .venv/bin/pip install pyinstaller
-packaging/build_app.sh          # writes dist/Mac Enhancer.app and dist/MacEnhancer-<version>-arm64.dmg
+packaging/build_app.sh          # writes dist/Mac Image Enhancer.app and dist/MacImageEnhancer-<version>-arm64.dmg
 ```
 
 The app is signed **ad hoc**, which is what Apple Silicon needs to run a locally built app. It is
 not signed with a Developer ID and not notarized, so a copy downloaded from the internet is
 stopped by Gatekeeper: open it with right-click → Open the first time. A signed, notarized
 release needs an Apple Developer account (`SIGN_ID=... packaging/build_app.sh`, then notarytool).
-`packaging/homebrew/mac-enhancer.rb` is an untested cask template for when a release exists.
+`packaging/homebrew/mac-image-enhancer.rb` is an untested cask template for when a release exists.
 
 ## Development
 
 ```sh
 .venv/bin/python test_enhance.py    # the engine, colour, batches, preview (add coremltools to test Core ML)
 .venv/bin/python test_gui.py        # interface text; the window part needs tkinter and a display
-.venv/bin/python test_faces.py      # face recovery; MAC_ENHANCER_FACE_SAMPLE=portrait.jpg also runs the real Vision + GFPGAN
+.venv/bin/python test_faces.py      # face recovery; MAC_IMAGE_ENHANCER_FACE_SAMPLE=portrait.jpg also runs the real Vision + GFPGAN
 ```
 
 `CLAUDE.md` holds the design notes, measurements and known limits of every part.

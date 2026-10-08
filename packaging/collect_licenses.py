@@ -39,7 +39,7 @@ def main(dest):
             lines += [f"--- {path}", text.strip(), ""]
     with open(dest, "w") as f:
         f.write("Licenses of the Python packages bundled in this application.\n"
-                "mac-enhancer itself: see LICENSE and NOTICE.\n\n" + "\n".join(lines))
+                "mac-image-enhancer itself: see LICENSE and NOTICE.\n\n" + "\n".join(lines))
     print(f"wrote {dest} ({len(PACKAGES) - len(missing)} packages with license text; none shipped by: {', '.join(missing) or '-'})")
 
 

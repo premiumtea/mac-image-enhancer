@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Mac Enhancer: the Tk front end for enhance.py.
+"""Mac Image Enhancer: the Tk front end for enhance.py.
 
 Open pictures, set the print size and DPI, click the picture to choose an area, press
 Preview to see the real result for that area at 100%, then Enhance to write the prints.
@@ -121,7 +121,7 @@ class App:
         self.models_dir = models_dir or weights.default_models_dir()
         self.s = load_settings(settings_path)
         self.lang = self.s["lang"] if self.s["lang"] in i18n.LANGUAGES else "en"
-        self.tmpdir = tempfile.mkdtemp(prefix="mac-enhancer-")
+        self.tmpdir = tempfile.mkdtemp(prefix="mac-image-enhancer-")
         self.images, self.index, self.src_size = [], 0, None
         self.thumb_photo = self.thumb_size = self.preview_images = self.preview_photo = self.full_thumb = None
         self._cmyk_path = ""
@@ -670,7 +670,7 @@ def main():
         import selftest
         sys.exit(selftest.run())
     if "--version" in sys.argv[1:]:
-        print(f"mac-enhancer {E.__version__}")
+        print(f"mac-image-enhancer {E.__version__}")
         return
     root = tk.Tk()
     root.minsize(980, 640)

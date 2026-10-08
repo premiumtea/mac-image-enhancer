@@ -8,7 +8,7 @@ LANGUAGES = {"en": "English", "th": "ไทย", "zh": "中文", "fr": "Françai
 
 STRINGS = {
     "en": {
-        "app_title": "Mac Enhancer",
+        "app_title": "Mac Image Enhancer",
         "language": "Language",
         "open_images": "Open images…",
         "no_image": "No image yet. Open one to begin.",
@@ -75,7 +75,7 @@ STRINGS = {
         "faces_license": "\n\nFace recovery uses GFPGAN. Its licence has conditions (parts are for non-commercial use only): read the NOTICE file before using it commercially.",
     },
     "th": {
-        "app_title": "Mac Enhancer",
+        "app_title": "Mac Image Enhancer",
         "language": "ภาษา",
         "open_images": "เปิดรูปภาพ…",
         "no_image": "ยังไม่มีรูปภาพ เปิดรูปภาพเพื่อเริ่มต้น",
@@ -142,7 +142,7 @@ STRINGS = {
         "faces_license": "\n\nการปรับปรุงใบหน้าใช้ GFPGAN ซึ่งมีเงื่อนไขด้านใบอนุญาต (บางส่วนใช้ได้เฉพาะงานที่ไม่ใช่เชิงพาณิชย์) โปรดอ่านไฟล์ NOTICE ก่อนนำไปใช้เชิงพาณิชย์",
     },
     "zh": {
-        "app_title": "Mac Enhancer",
+        "app_title": "Mac Image Enhancer",
         "language": "语言",
         "open_images": "打开图片…",
         "no_image": "还没有图片。请先打开一张。",
@@ -209,7 +209,7 @@ STRINGS = {
         "faces_license": "\n\n人脸修复使用 GFPGAN，其许可证附有条件（部分仅限非商业用途）。商业使用前请阅读 NOTICE 文件。",
     },
     "fr": {
-        "app_title": "Mac Enhancer",
+        "app_title": "Mac Image Enhancer",
         "language": "Langue",
         "open_images": "Ouvrir des images…",
         "no_image": "Aucune image pour l’instant. Ouvrez-en une pour commencer.",

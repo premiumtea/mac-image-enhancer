@@ -1,6 +1,6 @@
 """Where the Real-ESRGAN weight files live, and how to fetch them (stdlib only).
 
-The weights are never shipped with mac-enhancer: they are downloaded, at the user's
+The weights are never shipped with mac-image-enhancer: they are downloaded, at the user's
 request, from the Real-ESRGAN GitHub releases and checked against the SHA-256 recorded
 here (taken from the files this project was developed and tested with).
 """
@@ -33,13 +33,13 @@ GROUPS = {"photo": [PHOTO_FILE], "general": [GENERAL_FILE, GENERAL_WDN_FILE], "f
 
 
 def app_support_dir():
-    return os.path.join(os.path.expanduser("~/Library/Application Support"), "mac-enhancer")
+    return os.path.join(os.path.expanduser("~/Library/Application Support"), "mac-image-enhancer")
 
 
 def default_models_dir():
-    """$MAC_ENHANCER_MODELS, else models/ beside this file (a source checkout), else the
+    """$MAC_IMAGE_ENHANCER_MODELS, else models/ beside this file (a source checkout), else the
     per-user folder (pip install, or the .app where nothing sits beside the code)."""
-    env = os.environ.get("MAC_ENHANCER_MODELS")
+    env = os.environ.get("MAC_IMAGE_ENHANCER_MODELS")
     if env:
         return env
     beside = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")

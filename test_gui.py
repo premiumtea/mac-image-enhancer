@@ -132,7 +132,7 @@ with tempfile.TemporaryDirectory() as d:
     try:
         app = gui.App(root, settings_path=sfile, models_dir=mdir)
         root.update()
-        assert app.lang == "fr" and app.status_var.get() == "Prêt" and app.root.title() == "Mac Enhancer"
+        assert app.lang == "fr" and app.status_var.get() == "Prêt" and app.root.title() == "Mac Image Enhancer"
         assert app.images_label.cget("text") == i18n.tr("fr", "no_image")
         assert app.preview_btn.instate(["!disabled"]) and app.cancel_btn.instate(["disabled"])
 

@@ -1,4 +1,4 @@
-# PyInstaller spec for "Mac Enhancer.app". Built by packaging/build_app.sh; run from the repo root.
+# PyInstaller spec for "Mac Image Enhancer.app". Built by packaging/build_app.sh; run from the repo root.
 # The model weights are NOT bundled: the app downloads them on first use (see weights.py / NOTICE).
 import glob
 import importlib.util
@@ -12,7 +12,7 @@ BUILD = os.path.join(ROOT, "build")
 sys.path.insert(0, ROOT)
 import enhance  # noqa: E402  (only for the version)
 
-NAME = "Mac Enhancer"
+NAME = "Mac Image Enhancer"
 
 # spandrel imports torchvision, whose operators live in native libraries. PyInstaller's
 # collect_dynamic_libs only takes lib*.so, so torchvision's _C_stable.so / image_stable.so are
@@ -34,21 +34,21 @@ a = Analysis(
     excludes=["coremltools", "matplotlib", "IPython", "pytest", "tkinter.test", "torch.utils.tensorboard"],
 )
 pyz = PYZ(a.pure)
-exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="mac-enhancer-gui", console=False,
+exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="mac-image-enhancer-gui", console=False,
           target_arch="arm64")
 coll = COLLECT(exe, a.binaries, a.datas, name=NAME)
 app = BUNDLE(
     coll,
     name=f"{NAME}.app",
-    icon=os.path.join(BUILD, "MacEnhancer.icns"),
-    bundle_identifier="org.mac-enhancer.MacEnhancer",  # change to an identifier you own before a signed release
+    icon=os.path.join(BUILD, "MacImageEnhancer.icns"),
+    bundle_identifier="org.mac-image-enhancer.MacImageEnhancer",  # change to an identifier you own before a signed release
     info_plist={
         "CFBundleDisplayName": NAME,
         "CFBundleShortVersionString": enhance.__version__,
         "CFBundleVersion": enhance.__version__,
         "LSMinimumSystemVersion": "13.0",
         "NSHighResolutionCapable": True,
-        "NSHumanReadableCopyright": "Copyright (c) 2026 mac-enhancer contributors. MIT License.",
+        "NSHumanReadableCopyright": "Copyright (c) 2026 mac-image-enhancer contributors. MIT License.",
         "LSApplicationCategoryType": "public.app-category.photography",
     },
 )

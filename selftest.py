@@ -116,7 +116,7 @@ def run(window=True, out=print):
         try:
             app = gui.App(root, settings_path=os.path.join(tempfile.mkdtemp(), "s.json"))
             root.update()
-            assert app.root.title() == "Mac Enhancer"
+            assert app.root.title() == "Mac Image Enhancer"
             app.close()
         finally:
             try:

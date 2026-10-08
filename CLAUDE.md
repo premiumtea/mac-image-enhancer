@@ -1,4 +1,4 @@
-# mac-enhancer
+# mac-image-enhancer
 
 Open-source AI print-size image upscaler for macOS / Apple Silicon (MPS).
 Clean-room reimplementation of the *idea* of "ARM AI Image Enhancer"
@@ -30,7 +30,7 @@ licence collector, PyInstaller spec, `build_app.sh`, cask template. `pyproject.t
 `LICENSE` (MIT), `NOTICE`, `.github/workflows/`.
 `test_enhance.py`: stdlib + Pillow checks; torch/tifffile/CMYK-profile sections skip if missing.
 `test_gui.py`: interface text (no display needed) + the window driven with a tiny model (needs tkinter + display).
-`test_faces.py`: face recovery geometry, pasting, pipeline with stand-in detector/restorer; `MAC_ENHANCER_FACE_SAMPLE=portrait.jpg` also runs real Vision + GFPGAN.
+`test_faces.py`: face recovery geometry, pasting, pipeline with stand-in detector/restorer; `MAC_IMAGE_ENHANCER_FACE_SAMPLE=portrait.jpg` also runs real Vision + GFPGAN.
 Verified on this Mac mini (M2 Pro): tests pass, MPS works, MPS vs CPU max diff 1/255.
 
 ## Run
@@ -39,8 +39,8 @@ Verified on this Mac mini (M2 Pro): tests pass, MPS works, MPS vs CPU max diff 1
     .venv/bin/python gui.py                            # the window (python-tk@3.12 is installed)
     .venv/bin/python enhance.py --download-models      # fetch missing weights, SHA-256 checked (`faces` = the 349 MB GFPGAN)
     .venv/bin/python enhance.py in.jpg --size 40 --dpi 200 --faces -o out.png   # face recovery (read NOTICE first)
-    .venv/bin/python enhance.py --selftest             # also: "dist/Mac Enhancer.app/Contents/MacOS/mac-enhancer-gui" --selftest
-    PYTHONPATH=<dir with pyinstaller> packaging/build_app.sh   # dist/Mac Enhancer.app + .dmg
+    .venv/bin/python enhance.py --selftest             # also: "dist/Mac Image Enhancer.app/Contents/MacOS/mac-image-enhancer-gui" --selftest
+    PYTHONPATH=<dir with pyinstaller> packaging/build_app.sh   # dist/Mac Image Enhancer.app + .dmg
     .venv/bin/python enhance.py in.jpg --size 20x15 --unit cm --dpi 150 -o out.png
     .venv/bin/python enhance.py in.jpg --size 20x15 --model general --denoise 0.5 -o out.png
     .venv/bin/python enhance.py in.jpg --size 20x15 --bits 16 -o out.tif
@@ -158,7 +158,7 @@ from github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.p
    reported and the rest carry on (exit 1); colliding outputs or an output that is its own input are
    refused. `--resume` skips an output whose job fingerprint (`job_params`: input name+size+mtime,
    size/unit/dpi, model files, tile, bits, CMYK profile/intent, compress, ALGO_VERSION) matches the
-   record in `.mac-enhancer-jobs.json` next to the outputs; every run writes that record. Bump
+   record in `.mac-image-enhancer-jobs.json` next to the outputs; every run writes that record. Bump
    `ALGO_VERSION` whenever the pixels a job produces change.
    Measured (real model, M2 Pro): 209 Mpx print (17717x11812 from 4000x2667, 1 pass): old code numpy
    peak 1860 MB / RSS 3.94 GB / 223 s; new `--mem 256` (7 bands, TIFF): 581 MB / 0.89 GB / 310 s
@@ -179,7 +179,7 @@ from github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.p
    **Behavior changes made here:** TIFF is uncompressed by default (was LZW for 8-bit/CMYK via
    Pillow, zlib for 16-bit); `--tiff-compress` = deflate (LZW would need imagecodecs); tifffile is
    required for any TIFF; `-o` defaults to out.tif for `--bits 16`/CMYK; each run leaves a hidden
-   `.mac-enhancer-jobs.json` beside its outputs.
+   `.mac-image-enhancer-jobs.json` beside its outputs.
 5. Speed: fp16 on MPS (check artifacts) / Core ML.
    **Done: `--engine {gpu,gpu16,ane}`, default `gpu` (unchanged: bit-identical to before).**
    Per 288x288 tile (256 + pad 16), RRDBNet x4plus, M2 Pro: fp32 MPS 704 ms; fp16 MPS 570 (1.24x);
@@ -212,12 +212,12 @@ from github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.p
    of the `--resume` fingerprint; ane output is deterministic run to run.
 6. Distribution: GUI (Tkinter needs `brew install python-tk@3.12`), .app/.dmg, Homebrew, CI,
    LICENSE (MIT) + NOTICE. **Done except what needs the user's accounts (Open, below).**
-   LICENSE: MIT, "mac-enhancer contributors" (the user's choice). NOTICE: full BSD-3 text (Real-ESRGAN,
+   LICENSE: MIT, "mac-image-enhancer contributors" (the user's choice). NOTICE: full BSD-3 text (Real-ESRGAN,
    (c) 2021 Xintao Wang) and MIT text (spandrel, (c) 2024 The ChaiNNer Organization), fetched from
    the upstream repos, not from memory (spandrel's wheel ships no licence file). It says the weights
    are downloaded not shipped, and that upstream states no separate weights licence.
-   `weights.py`: models dir = $MAC_ENHANCER_MODELS, else ./models beside the code, else
-   ~/Library/Application Support/mac-enhancer/models (what pip installs and the .app use);
+   `weights.py`: models dir = $MAC_IMAGE_ENHANCER_MODELS, else ./models beside the code, else
+   ~/Library/Application Support/mac-image-enhancer/models (what pip installs and the .app use);
    `download()` pins SHA-256 (the values recorded from our own downloads, equal to the files in
    models/), writes `.partial`, renames after the check; `enhance.py --download-models`.
    Engine hooks the window needed: `enhance(progress=, cancel=)` (`count_tiles` plans the tile total
@@ -239,11 +239,11 @@ from github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.p
    switching) and a geometry audit (no clipped, zero-size or overflowing widget in the 4 languages at
    1040x700 and the 980x640 minimum; a negative control with a 420x300 window is flagged). The preview
    image the window produced was viewed and is a correct 640x480 crop. Expect cosmetic issues.
-   Packaging: `pyproject.toml` (setuptools >= 77, flat `py-modules`, scripts `mac-enhancer` and
-   `mac-enhancer-gui`, extra `ane`; the wheel is 40 KB and holds only the modules, LICENSE and NOTICE;
+   Packaging: `pyproject.toml` (setuptools >= 77, flat `py-modules`, scripts `mac-image-enhancer` and
+   `mac-image-enhancer-gui`, extra `ane`; the wheel is 40 KB and holds only the modules, LICENSE and NOTICE;
    installed outside the checkout it uses the Application Support models dir). `packaging/build_app.sh`:
    icon (own logo, `make_icon.py`) + `THIRD_PARTY_LICENSES.txt` (`collect_licenses.py`, from installed
-   metadata) -> PyInstaller (`mac_enhancer.spec`) -> ad hoc codesign -> .dmg. Result: app 557 MB, dmg
+   metadata) -> PyInstaller (`mac_image_enhancer.spec`) -> ad hoc codesign -> .dmg. Result: app 557 MB, dmg
    207 MB (no weights, no coremltools). The bundle shipped broken at first: `selftest.py` found
    "operator torchvision::nms does not exist" because torchvision's `_C_stable.so`/`image_stable.so`
    were missing (PyInstaller's `collect_dynamic_libs` only takes `lib*.so`); the spec now lists them.
@@ -252,18 +252,23 @@ from github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.p
    The dmg mounts and the signature verifies from it. `spctl --assess` REJECTS the app (ad hoc).
    CI: `ci.yml` (macos-14 + ubuntu-24.04: both test files + selftest) and `release.yml` (v* tag ->
    dmg -> GitHub release). Both parse as YAML and NEITHER HAS EVER RUN (no git repo, no remote); action
-   versions are from memory. Homebrew: `packaging/homebrew/mac-enhancer.rb` is a cask TEMPLATE
+   versions are from memory. Homebrew: `packaging/homebrew/mac-image-enhancer.rb` is a cask TEMPLATE
    (needs OWNER + a released dmg's sha256), untested.
-   **Open (needs the user):** a GitHub repo to push to (the local repo exists; CI, releases and the cask all wait on a remote); an Apple
+   **Open (needs the user):** CI and the release workflow have never run (they run on the first push); the cask needs a released dmg; an Apple
    Developer ID for signing + notarization (until then a downloaded app needs right-click > Open);
-   the bundle id `org.mac-enhancer.MacEnhancer` is a placeholder; the .app has no `--engine ane`
+   the bundle id `org.mac-image-enhancer.MacImageEnhancer` is a placeholder; the .app has no `--engine ane`
    (coremltools not bundled; deciding to bundle it adds ~100 MB, untested); the bundle was only run on
    this machine (macOS 26, M2 Pro), so `LSMinimumSystemVersion` 13.0 is a guess.
 
 ## Notes
 - Work and test here on the Mac (MPS). Linux CI/NAS has no MPS: CPU-only checks.
 - Ask the user before downloading model files or other large assets.
-- Local git repo on branch `main` (initial commit 4f40974, 2026-10-08, 23 files, 324 KB); there is NO remote yet.
+- Git repo on branch `main`, remote `origin` = https://github.com/premiumtea/mac-image-enhancer (public, created 2026-10-08
+  with the user's gh login; the token has the `workflow` scope, needed to push .github/workflows). The project was
+  renamed from "Mac Enhancer" to "Mac Image Enhancer" before the first push, because the user said the old name did not
+  say it handles images (CLI `mac-image-enhancer`, env `MAC_IMAGE_ENHANCER_MODELS`, Application Support folder
+  `mac-image-enhancer`, bundle id `org.mac-image-enhancer.MacImageEnhancer`). The local folder is still
+  `/Users/wolf/mac-enhancer` (the .venv has absolute paths: rename it only together with a new venv).
   `.gitignore` excludes .venv, models, build/, dist/, images and test outputs. Commits use the user's own git identity.
 - No display on this Mac: GUI work cannot be looked at, only driven (test_gui.py) and audited for geometry.
 - dist/ (app + dmg, ~760 MB) is gitignored build output, reproducible with packaging/build_app.sh.

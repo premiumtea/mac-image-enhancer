@@ -1,5 +1,5 @@
 """Run: python3 test_faces.py  (face recovery: geometry, pasting, the pipeline with stand-in detector and
-restorer. With MAC_ENHANCER_FACE_SAMPLE=portrait.jpg, macOS and the face weights it also runs the real thing.)"""
+restorer. With MAC_IMAGE_ENHANCER_FACE_SAMPLE=portrait.jpg, macOS and the face weights it also runs the real thing.)"""
 import os
 import tempfile
 
@@ -320,7 +320,7 @@ with tempfile.TemporaryDirectory() as d:
 print("pipeline with stand-ins ok")
 
 # ---- the real thing, when there is something to run it on ---------------------------------------------------
-sample = os.environ.get("MAC_ENHANCER_FACE_SAMPLE")
+sample = os.environ.get("MAC_IMAGE_ENHANCER_FACE_SAMPLE")
 real_ok = (sample and os.path.exists(sample) and not W.missing(W.default_models_dir(), [W.GFPGAN_FILE])
            and not W.missing(W.default_models_dir(), [W.PHOTO_FILE]))
 if real_ok:
@@ -329,7 +329,7 @@ if real_ok:
     except ImportError:
         real_ok = False
 if not real_ok:
-    print("real detector and GFPGAN: skipped (set MAC_ENHANCER_FACE_SAMPLE=portrait.jpg; needs macOS, "
+    print("real detector and GFPGAN: skipped (set MAC_IMAGE_ENHANCER_FACE_SAMPLE=portrait.jpg; needs macOS, "
           "pyobjc-framework-Vision and both model files)")
 else:
     img = Image.open(sample).convert("RGB")

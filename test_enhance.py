@@ -835,11 +835,11 @@ assert all(len(sha) == 64 and size > 0 and url.startswith(("https://github.com/x
 
 with _tf.TemporaryDirectory() as d:
     # where the models directory is: env var, else beside the code, else the per-user folder
-    old_env, old_home = os.environ.get("MAC_ENHANCER_MODELS"), os.environ.get("HOME")
+    old_env, old_home = os.environ.get("MAC_IMAGE_ENHANCER_MODELS"), os.environ.get("HOME")
     try:
-        os.environ["MAC_ENHANCER_MODELS"] = os.path.join(d, "mine")
+        os.environ["MAC_IMAGE_ENHANCER_MODELS"] = os.path.join(d, "mine")
         assert W.default_models_dir() == os.path.join(d, "mine")
-        del os.environ["MAC_ENHANCER_MODELS"]
+        del os.environ["MAC_IMAGE_ENHANCER_MODELS"]
         lone = os.path.join(d, "lone")  # a copy of weights.py with no models/ beside it, like a pip install or the .app
         os.makedirs(lone)
         shutil_copy = __import__("shutil").copy
@@ -848,11 +848,11 @@ with _tf.TemporaryDirectory() as d:
         lone_mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(lone_mod)
         os.environ["HOME"] = os.path.join(d, "home")
-        assert lone_mod.default_models_dir() == os.path.join(d, "home", "Library", "Application Support", "mac-enhancer", "models")
+        assert lone_mod.default_models_dir() == os.path.join(d, "home", "Library", "Application Support", "mac-image-enhancer", "models")
         os.makedirs(os.path.join(lone, "models"))
         assert lone_mod.default_models_dir() == os.path.join(lone, "models")  # a checkout's models/ wins
     finally:
-        for k, v in (("MAC_ENHANCER_MODELS", old_env), ("HOME", old_home)):
+        for k, v in (("MAC_IMAGE_ENHANCER_MODELS", old_env), ("HOME", old_home)):
             os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
 
     # missing(): absent files and files of the wrong size both count

@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Build "Mac Enhancer.app" and a .dmg:  packaging/build_app.sh
+# Build "Mac Image Enhancer.app" and a .dmg:  packaging/build_app.sh
 #
 # Needs the project's venv (torch, spandrel, pillow, numpy, tifffile, and tkinter via
 # `brew install python-tk@3.12`) plus `pip install pyinstaller`. Use PYTHON=... for another
@@ -14,12 +14,12 @@ PY=${PYTHON:-.venv/bin/python}
 VERSION=$($PY -c "import enhance; print(enhance.__version__)")
 
 mkdir -p build dist
-$PY packaging/make_icon.py build/MacEnhancer.icns
+$PY packaging/make_icon.py build/MacImageEnhancer.icns
 $PY packaging/collect_licenses.py build/THIRD_PARTY_LICENSES.txt
-$PY -m PyInstaller --noconfirm --clean --distpath dist --workpath build/pyinstaller packaging/mac_enhancer.spec
+$PY -m PyInstaller --noconfirm --clean --distpath dist --workpath build/pyinstaller packaging/mac_image_enhancer.spec
 
-APP="dist/Mac Enhancer.app"
-rm -rf "dist/Mac Enhancer"   # PyInstaller's intermediate folder: the .app is the same content
+APP="dist/Mac Image Enhancer.app"
+rm -rf "dist/Mac Image Enhancer"   # PyInstaller's intermediate folder: the .app is the same content
 codesign --force --deep --sign "${SIGN_ID:--}" "$APP"
 codesign --verify --deep --strict "$APP"
 
@@ -27,8 +27,8 @@ STAGE=build/dmg-stage
 rm -rf "$STAGE" && mkdir -p "$STAGE"
 cp -R "$APP" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
-DMG="dist/MacEnhancer-$VERSION-arm64.dmg"
+DMG="dist/MacImageEnhancer-$VERSION-arm64.dmg"
 rm -f "$DMG"
-hdiutil create -volname "Mac Enhancer $VERSION" -srcfolder "$STAGE" -ov -format UDZO "$DMG"
+hdiutil create -volname "Mac Image Enhancer $VERSION" -srcfolder "$STAGE" -ov -format UDZO "$DMG"
 echo "built: $APP"
 echo "built: $DMG ($(du -h "$DMG" | cut -f1))"

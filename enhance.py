@@ -33,7 +33,7 @@ DEFAULT_MEM_MB = 1024  # working-memory budget per band, see band_rows_for
 STRIP_BYTES = 1 << 20  # target TIFF strip size
 BIGTIFF_AT = 3 << 30  # raw bytes above which a TIFF needs the 64-bit BigTIFF layout
 RAM_WARN_BYTES = 2 << 30  # PNG/JPEG outputs are assembled in RAM; warn past this
-MANIFEST = ".mac-enhancer-jobs.json"  # per output dir: file name -> job fingerprint, for --resume
+MANIFEST = ".mac-image-enhancer-jobs.json"  # per output dir: file name -> job fingerprint, for --resume
 ALGO_VERSION = 1  # bump when the pixels a job produces change: invalidates --resume
 ENGINE_NAMES = ("gpu", "gpu16", "ane")  # fp32 torch (exact), fp16 torch, Core ML on the Neural Engine
 INTENT_NAMES = ("relative", "perceptual", "saturation", "absolute")  # keys of color.INTENTS
@@ -796,7 +796,7 @@ def run_batch(jobs, resume=False, on_job=None, **opts):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--version", action="version", version=f"mac-enhancer {__version__}")
+    ap.add_argument("--version", action="version", version=f"mac-image-enhancer {__version__}")
     ap.add_argument("--selftest", action="store_true", help="check that this installation works, then exit")
     ap.add_argument("images", nargs="*", metavar="image", help="one or more input images (a batch)")
     ap.add_argument("--size", help="WIDTH or WIDTHxHEIGHT in --unit (required with an image)")

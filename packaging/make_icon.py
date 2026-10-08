@@ -44,7 +44,7 @@ def logo():
 def main(dest):
     img = logo()
     with tempfile.TemporaryDirectory() as d:
-        iconset = os.path.join(d, "MacEnhancer.iconset")
+        iconset = os.path.join(d, "MacImageEnhancer.iconset")
         os.makedirs(iconset)
         for base in (16, 32, 128, 256, 512):
             img.resize((base, base), Image.LANCZOS).save(os.path.join(iconset, f"icon_{base}x{base}.png"))
@@ -56,4 +56,4 @@ def main(dest):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "build/MacEnhancer.icns")
+    main(sys.argv[1] if len(sys.argv) > 1 else "build/MacImageEnhancer.icns")

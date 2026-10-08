@@ -6,7 +6,7 @@ __pycache__/
 build/
 dist/
 .DS_Store
-.mac-enhancer-jobs.json
+.mac-image-enhancer-jobs.json
 *.partial
 # test pictures and outputs
 *.jpg

@@ -22,7 +22,7 @@ jobs:
       - name: Build
         run: PYTHON=python ./packaging/build_app.sh
       - name: Check the built app runs
-        run: "dist/Mac\\ Enhancer.app/Contents/MacOS/mac-enhancer-gui --selftest"
+        run: "dist/Mac\\ Image\\ Enhancer.app/Contents/MacOS/mac-image-enhancer-gui --selftest"
       - name: Checksum
         run: shasum -a 256 dist/*.dmg | tee dist/SHA256SUMS.txt
       - uses: softprops/action-gh-release@v2

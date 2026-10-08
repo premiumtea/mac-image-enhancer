@@ -1,7 +1,7 @@
-mac-enhancer
-Copyright (c) 2026 mac-enhancer contributors, MIT License (see LICENSE).
+mac-image-enhancer
+Copyright (c) 2026 mac-image-enhancer contributors, MIT License (see LICENSE).
 
-mac-enhancer is an independent, clean-room implementation of an AI print-size
+mac-image-enhancer is an independent, clean-room implementation of an AI print-size
 image upscaler for macOS / Apple Silicon. It reuses ideas and formulas that are
 free to use (pixels = inches x DPI, tiled super-resolution, ...), and no source
 code, strings, translations or assets of any other upscaler application.
@@ -16,7 +16,7 @@ https://github.com/xinntao/Real-ESRGAN
 ================================================================================
 The network architectures and the pre-trained models this program runs:
 RealESRGAN_x4plus.pth, realesr-general-x4v3.pth and realesr-general-wdn-x4v3.pth.
-The weight files are NOT part of this repository or of the .app/.dmg: mac-enhancer
+The weight files are NOT part of this repository or of the .app/.dmg: mac-image-enhancer
 downloads them, at the user's request, from the Real-ESRGAN GitHub releases and
 checks them against a pinned SHA-256. The Real-ESRGAN repository carries the
 license below and states no separate license for the weights; check upstream
