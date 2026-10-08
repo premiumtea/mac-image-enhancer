@@ -279,11 +279,19 @@ from github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.p
    `release.yml` (v* tag -> dmg -> GitHub release; also a manual run that only builds, checks, screenshots the
    launched app and uploads the dmg as an artifact). `screenshots.yml` is manual. Homebrew: `packaging/homebrew/mac-image-enhancer.rb` is a cask TEMPLATE
    (needs OWNER + a released dmg's sha256), untested.
-   **Open (needs the user):** CI and the release workflow have never run (they run on the first push); the cask needs a released dmg; an Apple
-   Developer ID for signing + notarization (until then a downloaded app needs right-click > Open);
-   the bundle id `org.mac-image-enhancer.MacImageEnhancer` is a placeholder; the .app has no `--engine ane`
-   (coremltools not bundled; deciding to bundle it adds ~100 MB, untested); the bundle was only run on
-   this machine (macOS 26, M2 Pro), so `LSMinimumSystemVersion` 13.0 is a guess.
+   **Released 2026-10-08 with the user's go-ahead: v0.1.0** (https://github.com/premiumtea/mac-image-enhancer/releases/tag/v0.1.0,
+   built by `release.yml` from the tag on macos-26; `MacImageEnhancer-0.1.0-arm64.dmg`, 225,266,331 bytes, sha256
+   586d61902c64515faf43cc9f0c5ab63eff254b2953f58a6e197214ce3516575b; notes in `packaging/release_notes.md`). Checked from the
+   downloaded dmg on the Mac mini: checksum, `codesign --verify`, Info.plist (0.1.0, macOS 13+), the bundled engine's
+   `--selftest`, and the app started from the dmg finding its bundled engine and running a real preview (GPU). NOT checked:
+   Gatekeeper's behaviour on another Mac (the app is ad hoc signed, not notarized, so the first launch needs Open Anyway), the
+   look on macOS 13-15, a clean Mac without Xcode/Python.
+   **Open (needs the user):** an Apple Developer ID for signing + notarization (until then a downloaded app needs Open Anyway);
+   the bundle id `org.mac-image-enhancer.MacImageEnhancer` is a placeholder; the cask template (`packaging/homebrew/`) needs this
+   release's sha256 and an untested install; the app has no `--engine ane` (coremltools not bundled, ~100 MB, untested);
+   th/zh/fr texts are drafts for native review. Claude for Open Source (claude.com/contact-sales/claude-for-oss) was looked at:
+   it needs 500+ dependents / foundation committer / 100+ merged PRs elsewhere / 20+ external contributors / OpenSSF score 0.4,
+   none true for this repo on day one (0 stars, 1 contributor), so not applied.
 
 ## Notes
 - Work and test here on the Mac (MPS). Linux CI/NAS has no MPS: CPU-only checks.
