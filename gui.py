@@ -53,7 +53,6 @@ PROCESSORS = {"auto": ("gpu", "auto"), "cpu": ("gpu", "cpu"), "gpu": ("gpu", "gp
               "gpu16": ("gpu16", "gpu"), "ane": ("ane", "auto")}
 # the stage is dark in light and dark mode alike: pictures are judged against a neutral dark
 STAGE_BG, STAGE_FG, STAGE_DIM, MARK = "#262626", "#f4f4f4", "#a3a3a3", "#ffd60a"
-HINT_COLORS = {"ok": "#1a9e4b", "care": "#c77700", "bad": "#d93025"}
 
 CHOICES = {"lang": tuple(i18n.LANGUAGES), "unit": UNITS, "model": ("photo", "general"),
            "processor": tuple(PROCESSORS), "preset": (*PRESETS, "custom")}
@@ -207,14 +206,57 @@ def notice_path():
     return None
 
 
-def dim_color(root):
-    """A grey for notes that reads on the window background, light or dark. (Tk ignores the
-    transparency of the system's own secondary-text colours, so they come out as plain white.)"""
+def is_dark(root):
+    """Is the window background dark (Dark Mode)?"""
     try:
         r, g, b = root.winfo_rgb("systemWindowBackgroundColor")
     except tk.TclError:
-        return "#6e6e73"
-    return "#a1a1a6" if (0.299 * r + 0.587 * g + 0.114 * b) / 65535 < 0.5 else "#6e6e73"
+        return False
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 65535 < 0.5
+
+
+def dim_color(root):
+    """A grey for notes that reads on the window background, light or dark. (Tk ignores the
+    transparency of the system's own secondary-text colours, so they come out as plain white.)"""
+    return "#a1a1a6" if is_dark(root) else "#6e6e73"
+
+
+# soft status pills: level -> ((background, text) in light mode, (background, text) in dark mode)
+PILLS = {"ok": (("#dff5e7", "#14753a"), ("#173a29", "#7fe0a6")),
+         "care": (("#fdeccf", "#8a5200"), ("#43330f", "#ffc761")),
+         "bad": (("#fde0de", "#b3261e"), ("#4d1f1c", "#ff9a92"))}
+ACCENT = "#0a84ff"
+
+
+def pill_points(x0, y0, x1, y1, r=None):
+    """Corner points of a rounded rectangle for a smoothed canvas polygon (fully round ends by default)."""
+    r = min((y1 - y0) / 2 if r is None else r, (x1 - x0) / 2)
+    return [x0 + r, y0, x1 - r, y0, x1, y0, x1, y0 + r, x1, y1 - r, x1, y1, x1 - r, y1, x0 + r, y1,
+            x0, y1, x0, y1 - r, x0, y0 + r, x0, y0]
+
+
+class Switch(tk.Canvas):
+    """An on/off switch drawn on a canvas, bound to a BooleanVar (Tk's own check box is a square box)."""
+
+    def __init__(self, parent, variable, command=None, background=None):
+        super().__init__(parent, width=42, height=26, highlightthickness=0, bd=0, cursor="hand2",
+                         **({"background": background} if background else {}))
+        self.variable, self.command = variable, command
+        self.bind("<Button-1>", self.toggle)
+        variable.trace_add("write", lambda *_: self.draw())
+        self.draw()
+
+    def draw(self):
+        self.delete("all")
+        on = bool(self.variable.get())
+        self.create_polygon(pill_points(2, 2, 40, 24), smooth=True, fill=ACCENT if on else "#8e8e93", outline="")
+        x = 29 if on else 13
+        self.create_oval(x - 9, 4, x + 9, 22, fill="white", outline="#d1d1d6")
+
+    def toggle(self, _=None):
+        self.variable.set(not self.variable.get())
+        if self.command:
+            self.command()
 
 
 # ---- the window --------------------------------------------------------------------------------
@@ -279,6 +321,8 @@ class App:
         self.bold.configure(weight="bold")
         self.h2 = base.copy()
         self.h2.configure(weight="bold", size=base.cget("size") + 2)
+        self.h1 = base.copy()
+        self.h1.configure(weight="bold", size=base.cget("size") + 8)
         self.big = base.copy()
         self.big.configure(weight="bold", size=base.cget("size") + 9)
         self.small = base.copy()
@@ -287,8 +331,14 @@ class App:
         self.root.bind("<<ThemeChanged>>", lambda e: self.apply_theme_colors())
 
     def apply_theme_colors(self):
+        self.dark = is_dark(self.root)
         self.dim = dim_color(self.root)
-        ttk.Style(self.root).configure("Hint.TLabel", foreground=self.dim, font=self.small)
+        st = ttk.Style(self.root)
+        st.configure("Hint.TLabel", foreground=self.dim, font=self.small)
+        self.panel_bg = st.lookup("TFrame", "background") or "systemWindowBackgroundColor"
+        if hasattr(self, "hint"):  # the pills follow Dark Mode while the window is open
+            self.update_plan()
+            self.set_pill(self.faces_badge, "care")
 
     def make(self, cls, parent, style=None, **kw):
         """A ttk widget in the given style, or in the default one on a Tk that lacks that style."""
@@ -328,13 +378,18 @@ class App:
         self.panel = panel
         head = ttk.Frame(panel)
         head.pack(fill="x")
-        ttk.Label(head, text="Mac Image Enhancer", font=self.h2).pack(side="left")
+        logo = tk.Canvas(head, width=30, height=30, highlightthickness=0, bd=0, background=self.panel_bg)
+        logo.create_polygon(pill_points(1, 1, 29, 29, 8), smooth=True, fill=ACCENT, outline="")
+        logo.create_rectangle(7, 9, 23, 21, outline="white", width=2)
+        logo.create_line(7, 21, 13, 14, 17, 18, 20, 15, 23, 21, fill="white", width=2)
+        logo.pack(side="left")
+        ttk.Label(head, text="Mac Image Enhancer", font=self.h2).pack(side="left", padx=8)
         self.lang_box = ttk.Combobox(head, textvariable=self.lang_var, state="readonly", width=8,
                                      values=list(i18n.LANGUAGES.values()))
         self.lang_box.pack(side="right")
         self.lang_box.bind("<<ComboboxSelected>>", self.on_language_box)
 
-        self._section(panel, "section_size")
+        self._section(panel, "section_size", 1)
         self.size_label = ttk.Label(panel, font=self.big)
         self.size_label.pack(anchor="w", pady=(0, 6))
         chips = ttk.Frame(panel)
@@ -369,7 +424,7 @@ class App:
         self.v["height"].trace_add("write", lambda *_: self.on_size_edit("height"))
         self.v["unit"].trace_add("write", self.on_option_change)
 
-        self._section(panel, "section_quality")
+        self._section(panel, "section_quality", 2)
         seg = ttk.Frame(panel)
         seg.pack(fill="x")
         self.quality = {}
@@ -381,20 +436,24 @@ class App:
             self.quality[dpi] = b
         self.quality_note = ttk.Label(panel, style="Hint.TLabel", wraplength=330, justify="left")
         self.quality_note.pack(anchor="w", pady=(6, 0))
-        self.hint = ttk.Label(panel, font=self.bold, wraplength=330, justify="left")
-        self.hint.pack(anchor="w", pady=(6, 0))
-        self.scale_note = ttk.Label(panel, style="Hint.TLabel")
-        self.scale_note.pack(anchor="w")
+        hints = ttk.Frame(panel)
+        hints.pack(fill="x", pady=(8, 0))
+        self.hint = self.pill(hints, wrap=300)
+        self.scale_note = ttk.Label(hints, style="Hint.TLabel")
+        self.scale_note.pack(anchor="w", pady=(4, 0))
         self.v["dpi"].trace_add("write", self.on_option_change)
 
-        self._section(panel, "section_options")
+        self._section(panel, "section_options", 3)
         row = self.faces_row = ttk.Frame(panel)
         row.pack(fill="x")
-        self.faces_check = self._reg(self.make(ttk.Checkbutton, row, "Switch.TCheckbutton", variable=self.v["faces"],
-                                               command=self.on_faces), "faces")
-        self.faces_check.pack(side="left")
-        self.faces_badge = self._reg(ttk.Label(row, foreground="#c77700", font=self.small), "faces_badge")
-        self.faces_badge.pack(side="left", padx=8)
+        self.faces_switch = Switch(row, self.v["faces"], self.on_faces, background=self.panel_bg)
+        self.faces_switch.pack(side="left")
+        self.faces_check = self._reg(ttk.Label(row, cursor="hand2"), "faces")
+        self.faces_check.pack(side="left", padx=8)
+        self.faces_check.bind("<Button-1>", self.faces_switch.toggle)
+        self.faces_badge = self._reg(self.pill(row), "faces_badge")
+        self.set_pill(self.faces_badge, "care")
+        self.faces_badge.pack(side="left")
         self.faces_extra = ttk.Frame(panel)
         strength = ttk.Frame(self.faces_extra)
         strength.pack(fill="x", pady=(4, 0))
@@ -433,9 +492,24 @@ class App:
         self.cancel_btn.state(["disabled"])
         self.face_scale.state(["disabled"])
 
-    def _section(self, parent, key):
-        ttk.Separator(parent).pack(fill="x", pady=(12, 6))
-        self._reg(ttk.Label(parent, font=self.bold), key).pack(anchor="w", pady=(0, 4))
+    def _section(self, parent, key, number):
+        """A step heading: its number in a blue disc, then its title."""
+        ttk.Separator(parent).pack(fill="x", pady=(12, 8))
+        row = ttk.Frame(parent)
+        row.pack(fill="x", pady=(0, 6))
+        disc = tk.Canvas(row, width=24, height=24, highlightthickness=0, bd=0, background=self.panel_bg)
+        disc.create_oval(1, 1, 23, 23, fill=ACCENT, outline="")
+        disc.create_text(12, 12, text=str(number), fill="white", font=self.bold)
+        disc.pack(side="left")
+        self._reg(ttk.Label(row, font=self.h2), key).pack(side="left", padx=8)
+
+    def pill(self, parent, wrap=0):
+        """A small label on a soft coloured background; see set_pill."""
+        return tk.Label(parent, font=self.bold, padx=9, pady=3, bd=0, wraplength=wrap, justify="left")
+
+    def set_pill(self, label, level):
+        bg, fg = PILLS[level][1 if self.dark else 0]
+        label.configure(background=bg, foreground=fg)
 
     def _build_advanced(self):
         win = tk.Toplevel(self.root)
@@ -732,8 +806,9 @@ class App:
         plan = self.current_plan()
         if plan is None:
             self.summary_var.set(self.t("summary_none") if not self.src_size else "")
-            for lab in (self.crop_note, self.hint, self.scale_note):
+            for lab in (self.crop_note, self.scale_note):
                 lab.configure(text="")
+            self.hint.pack_forget()
             self._view = None
             self.draw_stage()
             return
@@ -742,7 +817,9 @@ class App:
         scale = max(tw / cw, th / ch)
         key, level = quality_hint(scale, passes)
         self.summary_var.set(self.t("summary_out", w=tw, h=th, mp=tw * th / 1e6))
-        self.hint.configure(text="● " + self.t(key), foreground=HINT_COLORS[level])
+        self.hint.configure(text=self.t(key))
+        self.set_pill(self.hint, level)
+        self.hint.pack(anchor="w", before=self.scale_note)
         self.scale_note.configure(text=self.t("scale_note", scale=scale) if passes else "")
         self.crop_note.configure(text=self.t("crop_note") if (cw, ch) != self.src_size else "")
         self.draw_stage()
@@ -768,17 +845,18 @@ class App:
 
     def _draw_empty(self, cw, ch):
         c = self.stage
-        cx, cy = cw / 2, ch / 2 - 40
-        # a picture glyph
-        c.create_rectangle(cx - 44, cy - 66, cx + 44, cy - 10, outline=STAGE_DIM, width=3)
-        c.create_oval(cx + 12, cy - 54, cx + 28, cy - 38, outline=STAGE_DIM, width=3)
-        c.create_line(cx - 44, cy - 10, cx - 18, cy - 38, cx - 2, cy - 22, cx + 12, cy - 34, cx + 44, cy - 10,
-                      fill=STAGE_DIM, width=3, joinstyle="round")
-        c.create_text(cx, cy + 18, text=self.t("empty_title"), fill=STAGE_FG, font=self.h2, width=wrap_at(cw - 60),
+        cx, cy = cw / 2, ch / 2 - 50
+        c.create_oval(cx - 74, cy - 112, cx + 74, cy + 36, fill="#303034", outline="")  # a soft disc behind the glyph
+        glyph = "#5eb0ff"
+        c.create_polygon(pill_points(cx - 40, cy - 84, cx + 40, cy - 22, 8), smooth=True, outline=glyph, fill="", width=4)
+        c.create_oval(cx + 10, cy - 70, cx + 26, cy - 54, outline=glyph, width=4)
+        c.create_line(cx - 36, cy - 28, cx - 16, cy - 50, cx - 2, cy - 36, cx + 12, cy - 48, cx + 34, cy - 28,
+                      fill=glyph, width=4, joinstyle="round", capstyle="round")
+        c.create_text(cx, cy + 66, text=self.t("empty_title"), fill=STAGE_FG, font=self.h1, width=wrap_at(cw - 60, 560),
                       justify="center")
-        c.create_text(cx, cy + 62, text=self.t("empty_text"), fill=STAGE_DIM, width=wrap_at(cw - 80, 460), justify="center")
-        self.stage_button("open", cx, cy + 118, self.t("open_btn"), self.on_open, "c", accent=True)
-        c.create_text(cx, cy + 162, text=self.t("empty_hint"), fill=STAGE_DIM, font=self.small, width=wrap_at(cw - 80, 460),
+        c.create_text(cx, cy + 118, text=self.t("empty_text"), fill=STAGE_DIM, width=wrap_at(cw - 80, 440), justify="center")
+        self.stage_button("open", cx, cy + 174, self.t("open_btn"), self.on_open, "c", accent=True)
+        c.create_text(cx, cy + 220, text=self.t("empty_hint"), fill="#7c7c82", font=self.small, width=wrap_at(cw - 80, 460),
                       justify="center")
 
     def stage_button(self, name, x, y, text, command, anchor="e", accent=False):
@@ -791,8 +869,7 @@ class App:
         left = x - w if anchor == "e" else x - w / 2
         top, r = y - h / 2, h / 2
         fill, hover, line = ("#0a84ff", "#409cff", "#0a84ff") if accent else ("#3c3c3f", "#505054", "#636368")
-        pts = [left + r, top, left + w - r, top, left + w, top, left + w, top + r, left + w, top + h - r, left + w, top + h,
-               left + w - r, top + h, left + r, top + h, left, top + h, left, top + h - r, left, top + r, left, top]
+        pts = pill_points(left, top, left + w, top + h)
         shape = c.create_polygon(pts, smooth=True, fill=fill, outline=line)
         c.coords(label, left + w / 2, top + h / 2)
         c.tag_raise(label)
@@ -830,6 +907,7 @@ class App:
         ox, oy = x0 + (aw - size[0]) / 2, y0 + (ah - size[1]) / 2
         self._origin = (ox, oy)
         self.preview_px = (min(PREVIEW_MAX[0], max(int(cw) - 40, 160)), min(PREVIEW_MAX[1], max(int(ch) - 2 * BAND, 120)))
+        c.create_rectangle(ox - 1, oy - 1, ox + size[0], oy + size[1], outline="#444448")
         c.create_image(ox, oy, anchor="nw", image=self._view[1])
         if plan:
             bx0, by0, bx1, by1 = marker_box(self.center, self.preview_px, plan[:2], size)
@@ -846,15 +924,19 @@ class App:
         ox, oy = x0 + max((aw - pw) / 2, 0), y0 + max((ah - ph) / 2, 0)
         sx = round(self.split * pw)
         self._compare_photo = ImageTk.PhotoImage(compare_image(original, result, self.split))
+        c.create_rectangle(ox - 1, oy - 1, ox + pw, oy + ph, outline="#444448")
         c.create_image(ox, oy, anchor="nw", image=self._compare_photo)
         self._cmp = (ox, oy, pw, ph)
         lx = ox + sx
         c.create_line(lx, oy, lx, oy + ph, fill="white", width=2)
-        c.create_oval(lx - 14, oy + ph / 2 - 14, lx + 14, oy + ph / 2 + 14, fill="white", outline="#555555")
-        c.create_text(lx, oy + ph / 2, text="◂▸", fill="#333333", font=self.small)
-        for text, x, anchor in ((self.t("before"), ox + 8, "nw"), (self.t("after"), ox + pw - 8, "ne")):
-            c.create_text(x + 1, oy + 9, anchor=anchor, text=text, fill="black", font=self.bold)
-            c.create_text(x, oy + 8, anchor=anchor, text=text, fill="white", font=self.bold)
+        c.create_oval(lx - 15, oy + ph / 2 - 15, lx + 15, oy + ph / 2 + 15, fill="white", outline="#9a9aa0", width=1)
+        c.create_polygon(lx - 8, oy + ph / 2, lx - 3, oy + ph / 2 - 5, lx - 3, oy + ph / 2 + 5, fill="#3a3a3c", outline="")
+        c.create_polygon(lx + 8, oy + ph / 2, lx + 3, oy + ph / 2 - 5, lx + 3, oy + ph / 2 + 5, fill="#3a3a3c", outline="")
+        for text, x, anchor in ((self.t("before"), ox + 10, "nw"), (self.t("after"), ox + pw - 10, "ne")):
+            label = c.create_text(x, oy + 10 + 5, anchor=anchor, text=text, fill="white", font=self.bold)
+            x0, y0, x1, y1 = c.bbox(label)
+            chip = c.create_polygon(pill_points(x0 - 9, y0 - 3, x1 + 9, y1 + 3), smooth=True, fill="#1c1c1e", outline="")
+            c.tag_lower(chip, label)
         c.create_text(20, BAND / 2, anchor="w", text=self.t("compare_hint"), fill=STAGE_DIM, width=wrap_at(cw - 260, 900))
         self.stage_button("back", cw - 20, BAND / 2, self.t("back_to_pick"), self.on_back)
 

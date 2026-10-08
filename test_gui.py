@@ -208,7 +208,8 @@ with tempfile.TemporaryDirectory() as d:
         assert app.src_size == (40, 30) and app.mode == "source" and app.v["height"].get() == "1.5"
         assert app.summary_var.get() == "Résultat : 200 × 150 px  (0.0 mégapixels)", app.summary_var.get()
         assert app.size_label.cget("text") == "2 × 1.5 po"
-        assert app.hint.cget("text") == "● " + i18n.tr("fr", "hint_stretch")  # 5x: some areas may look soft
+        assert app.hint.cget("text") == i18n.tr("fr", "hint_stretch") and app.hint.winfo_manager() == "pack"  # 5x: some areas may look soft
+        assert app.hint.cget("background") == gui.PILLS["care"][int(app.dark)][0]  # a caution is amber, not green
         assert app.scale_note.cget("text") == "Agrandissement ×5.0" and app.crop_note.cget("text") == ""
         assert "a.png  ·  40 × 30 px" in stage_texts(app) and len(marks(app)) == 1
         assert list(app.stage_buttons) == ["change"] and app.stage_buttons["change"]["text"] == i18n.tr("fr", "change_pic")
@@ -217,7 +218,7 @@ with tempfile.TemporaryDirectory() as d:
         assert app.summary_var.get().startswith("Résultat : 200 × 100 px") and app.crop_note.cget("text") != ""
         app.v["dpi"].set("abc")
         root.update()
-        assert app.summary_var.get() == "" and app.hint.cget("text") == ""  # an invalid field shows no plan, not a wrong one
+        assert app.summary_var.get() == "" and app.hint.winfo_manager() == ""  # an invalid field shows no plan, not a wrong one
         assert app.mode == "source" and app.stage.find_all()  # the picture is still there
         app.v["dpi"].set("100")
         app.v["height"].set("1.5")
@@ -392,21 +393,30 @@ with tempfile.TemporaryDirectory() as d:
         app.v["bits16"].set(False)
         app.load_images([a])
 
-        # Cancel: stops, leaves nothing half-written, and the window becomes usable again
+        # Cancel: stops, leaves nothing half-written, and the window becomes usable again. Cancel is pressed from
+        # inside the first progress report, because a timed click races the CPU (a fast runner finishes first).
         cancelled = os.path.join(d, "cancelled")
         os.makedirs(cancelled)
-        app.v["width"].set("40")  # big (4000 x 3000 px) and in small tiles, so that even a fast CPU is still busy when Cancel comes
-        app.v["height"].set("30")
-        opts = app.collect(None)
-        opts["tile"] = 16
-        app.run_enhance(opts, os.path.join(cancelled, "x.png"))
-        pump(lambda: app.busy and app.progress_var.get() > 0)
-        app.on_cancel()
-        pump(lambda: not app.busy)
-        assert status(app) == i18n.tr("fr", "cancelled") and app.preview_btn.instate(["!disabled"])
+        real_batch = E.run_batch
+
+        def batch_then_cancel(jobs, resume, **kw):
+            inner = kw["progress"]
+
+            def progress(frac):
+                inner(frac)
+                app.on_cancel()
+            return real_batch(jobs, resume, **{**kw, "progress": progress})
+        E.run_batch = batch_then_cancel
+        try:
+            opts = app.collect(None)
+            opts["tile"] = 16  # several tiles: there is something left to interrupt
+            app.run_enhance(opts, os.path.join(cancelled, "x.png"))
+            pump(lambda: not app.busy)
+        finally:
+            E.run_batch = real_batch
+        assert status(app) == i18n.tr("fr", "cancelled"), status(app)
+        assert app.preview_btn.instate(["!disabled"]) and app.progress_var.get() == 0
         assert not [f for f in os.listdir(cancelled) if not f.startswith(".mac")], os.listdir(cancelled)
-        app.v["width"].set("2")
-        app.v["height"].set("1.5")
 
         # 16-bit and CMYK together cannot be written: told so, nothing started
         app.set_profile("/somewhere/printer.icc")
@@ -459,6 +469,13 @@ with tempfile.TemporaryDirectory() as d:
         import faces as face_lib
         real_vision = gui.has_vision
         assert not app.v["faces"].get() and app.faces_extra.winfo_manager() == ""
+        # the switch: a click turns it on and shows the strength and the warning, a second click undoes it
+        assert {app.faces_switch.type(i) for i in app.faces_switch.find_all()} == {"polygon", "oval"}
+        app.faces_switch.toggle()
+        assert app.v["faces"].get() and app.faces_extra.winfo_manager() == "pack"
+        app.faces_switch.toggle()
+        assert not app.v["faces"].get() and app.faces_extra.winfo_manager() == ""
+        app.set_status("ready", {})
         gui.has_vision = lambda: False
         app.v["faces"].set(True)
         app.on_faces()  # no Apple Vision: told so, in French
