@@ -1,0 +1,35 @@
+# Tests on a Mac (Apple Silicon runner) and on Linux (CPU only). The GitHub macOS runners are
+# virtual machines without GPU access, so MPS-only checks skip themselves there; the CPU paths,
+# the GUI logic and the whole pipeline on a tiny model all run.
+name: CI
+on:
+  push:
+  pull_request:
+
+jobs:
+  tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            pip install torch --index-url https://download.pytorch.org/whl/cpu
+          else
+            pip install torch
+          fi
+          pip install spandrel pillow numpy tifffile
+      - name: Tests (engine, colour, batch, preview)
+        run: python test_enhance.py
+      - name: Tests (interface text and window; the window part skips without tkinter or a display)
+        run: python test_gui.py
+      - name: Self-test
+        run: python enhance.py --selftest

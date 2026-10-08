@@ -1,0 +1,159 @@
+mac-enhancer
+Copyright (c) 2026 mac-enhancer contributors, MIT License (see LICENSE).
+
+mac-enhancer is an independent, clean-room implementation of an AI print-size
+image upscaler for macOS / Apple Silicon. It reuses ideas and formulas that are
+free to use (pixels = inches x DPI, tiled super-resolution, ...), and no source
+code, strings, translations or assets of any other upscaler application.
+
+It builds on the open-source work below. Their licenses are reproduced in full
+because binary builds (the .app / .dmg) include or load their code.
+
+
+================================================================================
+Real-ESRGAN  (BSD 3-Clause)
+https://github.com/xinntao/Real-ESRGAN
+================================================================================
+The network architectures and the pre-trained models this program runs:
+RealESRGAN_x4plus.pth, realesr-general-x4v3.pth and realesr-general-wdn-x4v3.pth.
+The weight files are NOT part of this repository or of the .app/.dmg: mac-enhancer
+downloads them, at the user's request, from the Real-ESRGAN GitHub releases and
+checks them against a pinned SHA-256. The Real-ESRGAN repository carries the
+license below and states no separate license for the weights; check upstream
+before redistributing them, including the terms of their training data.
+
+BSD 3-Clause License
+
+Copyright (c) 2021, Xintao Wang
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its
+   contributors may be used to endorse or promote products derived from
+   this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+================================================================================
+spandrel  (MIT)
+https://github.com/chaiNNer-org/spandrel
+================================================================================
+Loads the Real-ESRGAN (RRDBNet) and Compact (SRVGGNetCompact) architectures from
+their weight files. Its wheel does not ship its license file, so the upstream
+text is reproduced here.
+
+Copyright (c) 2024 The ChaiNNer Organization
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+================================================================================
+GFPGAN  (Apache License 2.0, with exceptions; optional face recovery)
+https://github.com/TencentARC/GFPGAN        Copyright (C) 2021 THL A29 Limited, a Tencent company
+================================================================================
+Face recovery (--faces, and the "Restore faces" box in the window) runs the GFPGAN v1.4 network
+(GFPGANv1.4.pth, 349 MB) that spandrel loads. The weights are NOT part of this repository or of the
+.app/.dmg: they are downloaded from the GFPGAN releases only when the user asks for them, and checked
+against a pinned SHA-256.
+
+READ THIS BEFORE USING FACE RECOVERY COMMERCIALLY. GFPGAN's own LICENSE file says: "GFPGAN is licensed
+under the Apache License Version 2.0 except for the third-party components listed below." Among those
+components it lists:
+  - StyleGAN2: "The codes are modified from the repository stylegan2-pytorch ... The official
+    repository is https://github.com/NVlabs/stylegan2, and here is the NVIDIA license." That licence
+    says the work "may be used or intended for use non-commercially", where "non-commercially" means
+    "for research or evaluation purposes only".
+  - DFDNet: "The codes are largely modified from the repository DFDNet. Their license is Creative
+    Commons Attribution-NonCommercial-ShareAlike 4.0 International License."
+The weights were also trained on face photographs (FFHQ), which carry their own terms. We have not
+been able to establish whether these conditions reach the weights, or what they mean for a printing
+business, and this project does not give legal advice. Face recovery is therefore off by default,
+nothing is shipped, and the decision to use it, and for what, is the user's. The full GFPGAN LICENSE
+is at the address above.
+
+================================================================================
+facexlib  (MIT)
+https://github.com/xinntao/facexlib
+================================================================================
+The five FFHQ landmark coordinates GFPGAN is trained to expect (and the three of them we use), and the
+idea of aligning a face with a similarity transform and pasting it back through a soft mask, come from
+facexlib's FaceRestoreHelper. No facexlib code is included.
+
+MIT License
+
+Copyright (c) 2020 Xintao Wang
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+================================================================================
+Apple Vision and PyObjC
+================================================================================
+Faces and their landmarks are found with Apple's Vision framework, part of macOS, reached through
+PyObjC (pyobjc-framework-Vision and its companions, MIT licence, listed in THIRD_PARTY_LICENSES.txt
+inside the .app). No face-detection model is shipped or downloaded.
+
+
+================================================================================
+Other dependencies (installed from PyPI, not vendored in this repository)
+================================================================================
+PyTorch (BSD-3-Clause style), NumPy (BSD-3-Clause), Pillow (MIT-CMU), tifffile
+(BSD-3-Clause), PyObjC (MIT) for face recovery, and optionally coremltools (BSD-3-Clause) for --engine ane. The
+Tk GUI uses Python's tkinter (PSF license) and Tcl/Tk (Tcl/Tk license).
+
+Binary builds bundle these packages. packaging/collect_licenses.py gathers the
+license files they ship into THIRD_PARTY_LICENSES.txt, which goes into the .app.
+
+The interface text and its translations (English, Thai, Chinese, French) are
+written for this project; they are drafts and welcome native-speaker review.

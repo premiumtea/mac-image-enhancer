@@ -1,0 +1,17 @@
+.venv/
+models/
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.DS_Store
+.mac-enhancer-jobs.json
+*.partial
+# test pictures and outputs
+*.jpg
+*.jpeg
+*.png
+*.tif
+*.tiff
+!packaging/**/*.png

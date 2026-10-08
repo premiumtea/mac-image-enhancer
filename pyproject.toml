@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mac-enhancer"
+dynamic = ["version"]
+description = "AI print-size image upscaler for macOS / Apple Silicon"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE", "NOTICE"]
+keywords = ["upscale", "super-resolution", "print", "dpi", "real-esrgan", "macos"]
+classifiers = [
+    "Operating System :: MacOS :: MacOS X",
+    "Environment :: MacOS X",
+    "Topic :: Multimedia :: Graphics :: Graphics Conversion",
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "torch",
+    "spandrel>=0.4",
+    "pillow",
+    "numpy",
+    "tifffile",
+]
+
+[project.optional-dependencies]
+ane = ["coremltools"]  # --engine ane: Core ML on the Neural Engine
+faces = ["pyobjc-framework-Vision; sys_platform == 'darwin'"]  # --faces: Apple Vision finds the faces (GFPGAN weights: --download-models faces)
+
+[project.scripts]
+mac-enhancer = "enhance:main"
+
+[project.gui-scripts]
+mac-enhancer-gui = "gui:main"
+
+[tool.setuptools]
+# flat modules, no package directory: models/ and tests stay out of the wheel
+py-modules = ["enhance", "color", "weights", "i18n", "gui", "selftest", "faces"]
+
+[tool.setuptools.dynamic]
+version = {attr = "enhance.__version__"}
