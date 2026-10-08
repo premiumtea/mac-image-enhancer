@@ -18,8 +18,11 @@ struct ContentView: View {
             }
             if model.dropTargeted { DropOverlay() }
         }
-        .frame(minWidth: 1000, minHeight: 680)
+        .frame(minWidth: 1000, minHeight: 620)
         .preferredColorScheme(.dark)
+        .onAppear {  // no number field should start out selected
+            DispatchQueue.main.async { NSApp.keyWindow?.makeFirstResponder(nil) }
+        }
         .sheet(isPresented: $model.showAdvanced) { AdvancedSheet().environmentObject(model) }
         .alert(model.t("weights_title"), isPresented: Binding(get: { model.pendingDownload != nil }, set: { _ in }), presenting: model.pendingDownload) { _ in
             Button(model.t("download_btn")) { model.answerDownload(true) }

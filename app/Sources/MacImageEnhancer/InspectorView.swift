@@ -5,12 +5,16 @@ struct InspectorView: View {
     @EnvironmentObject var model: AppModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
+        VStack(alignment: .leading, spacing: 20) {
             Header()
-            SizeSection()
-            QualitySection()
-            FacesSection()
-            Spacer(minLength: 0)
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 24) {
+                    SizeSection()
+                    QualitySection()
+                    FacesSection()
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
             Button { model.showAdvanced = true } label: {
                 HStack {
                     Text(verbatim: model.t("advanced_btn").replacingOccurrences(of: "…", with: ""))
@@ -105,7 +109,7 @@ struct SizeSection: View {
                 } label: {
                     Text(verbatim: model.t(model.unit.stringKey)).font(.system(size: 16)).foregroundStyle(Theme.secondary)
                 }
-                .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
+                .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
             }
             .font(.system(size: 40, weight: .light)).monospacedDigit().foregroundStyle(.white)
             .lineLimit(1).minimumScaleFactor(0.6)

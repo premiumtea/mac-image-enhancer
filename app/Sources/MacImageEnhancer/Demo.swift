@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 /// Scenarios for taking screenshots on a machine with a display (see packaging/screenshots_app.sh):
@@ -9,6 +10,13 @@ enum Demo {
         if let lang = env["MAC_IMAGE_ENHANCER_DEMO_LANG"], Strings.table[lang] != nil { model.l10n.lang = lang }
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 800_000_000)
+            // fit the window to the screen, as the system does for a person, and bring it to the front
+            if let w = NSApp.windows.first(where: { $0.isVisible }), let area = (w.screen ?? NSScreen.main)?.visibleFrame {
+                let size = CGSize(width: min(1120, area.width), height: min(740, area.height))
+                w.setFrame(NSRect(x: area.minX, y: area.maxY - size.height, width: size.width, height: size.height), display: true)
+                w.makeKeyAndOrderFront(nil)
+            }
+            NSApp.activate(ignoringOtherApps: true)
             if scenario != "empty", let path = env["MAC_IMAGE_ENHANCER_DEMO_IMAGE"] {
                 model.preset = "custom"
                 model.widthText = "45"

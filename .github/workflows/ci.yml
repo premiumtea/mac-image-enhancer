@@ -37,3 +37,25 @@ jobs:
         run: python test_faces.py
       - name: Self-test
         run: python enhance.py --selftest
+
+  # The SwiftUI app (Liquid Glass needs the macOS 26 SDK, so this runs on a macos-26 runner): the generated Swift
+  # files must be current, the Swift tests must pass (they include a real engine round trip), and the app must build.
+  swift:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install the engine's Python packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch torchvision spandrel pillow numpy tifffile
+      - name: Generated Swift files are up to date
+        run: python packaging/gen_swift.py --check
+      - name: Swift tests
+        run: cd app && swift test
+        env:
+          MAC_IMAGE_ENHANCER_ENGINE: ${{ format('{0}|{1}/enhance.py', '/Users/runner/hostedtoolcache/Python/3.12.10/arm64/bin/python', github.workspace) }}
+      - name: Build the app
+        run: cd app && swift build -c release

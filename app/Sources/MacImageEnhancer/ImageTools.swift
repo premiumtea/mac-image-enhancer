@@ -41,8 +41,11 @@ enum ImageTools {
     static func nsImage(_ cg: CGImage) -> NSImage { NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height)) }
 
     /// Loads a PNG written by the engine, at its true pixel size.
+    /// The file is read and decoded right away, so it can be deleted afterwards (a lazily decoded image would turn black).
     static func loadPixels(_ url: URL) -> NSImage? {
-        guard let src = CGImageSourceCreateWithURL(url as CFURL, nil), let cg = CGImageSourceCreateImageAtIndex(src, 0, nil) else { return nil }
+        guard let data = try? Data(contentsOf: url),
+              let src = CGImageSourceCreateWithData(data as CFData, nil),
+              let cg = CGImageSourceCreateImageAtIndex(src, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary) else { return nil }
         return nsImage(cg)
     }
 
