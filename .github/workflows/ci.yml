@@ -53,9 +53,9 @@ jobs:
           pip install torch torchvision spandrel pillow numpy tifffile
       - name: Generated Swift files are up to date
         run: python packaging/gen_swift.py --check
-      - name: Swift tests
-        run: cd app && swift test
-        env:
-          MAC_IMAGE_ENHANCER_ENGINE: ${{ format('{0}|{1}/enhance.py', '/Users/runner/hostedtoolcache/Python/3.12.10/arm64/bin/python', github.workspace) }}
+      - name: Swift tests (with this checkout's Python as the engine)
+        run: |
+          export MAC_IMAGE_ENHANCER_ENGINE="$(which python)|$PWD/enhance.py"
+          cd app && swift test
       - name: Build the app
         run: cd app && swift build -c release
