@@ -113,8 +113,11 @@ packaging/build_app.sh          # writes dist/Mac Image Enhancer.app and dist/Ma
 
 The app is signed **ad hoc**, which is what Apple Silicon needs to run a locally built app. It is
 not signed with a Developer ID and not notarized, so a copy downloaded from the internet is
-stopped by Gatekeeper: open it with right-click → Open the first time. A signed, notarized
-release needs an Apple Developer account (`SIGN_ID=... packaging/build_app.sh`, then notarytool).
+stopped by Gatekeeper the first time. How to get past it (we have only tested the build, not this
+step on every macOS version): on macOS 14 and earlier, right-click the app → Open → Open; on
+macOS 15 and later, open the app once, then System Settings → Privacy & Security → scroll down →
+**Open Anyway**. A signed, notarized release, which opens with a double click, needs an Apple
+Developer account (`SIGN_ID=... packaging/build_app.sh`, then notarytool).
 `packaging/homebrew/mac-image-enhancer.rb` is an untested cask template for when a release exists.
 
 ## Development

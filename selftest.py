@@ -96,7 +96,14 @@ def run(window=True, out=print):
             import Vision  # noqa: F401
         except ImportError:
             return "Apple Vision (pyobjc-framework-Vision) is not installed: face recovery is unavailable"
-        assert F.detect_faces(Image.new("RGB", (96, 96), (120, 120, 120))) == []  # a real request, no face in it
+        try:
+            assert F.detect_faces(Image.new("RGB", (96, 96), (120, 120, 120))) == []  # a real request, no face in it
+        except RuntimeError as e:
+            if "Apple Vision failed" not in str(e):
+                raise
+            # the framework loaded and answered, so the install is fine; this Mac just cannot run Vision (seen on a
+            # GitHub runner: a virtual machine without GPU or Neural Engine answers "unexpected condition")
+            return f"Vision is installed but cannot run here (a virtual machine?): {str(e)[:90]}"
         d = weights.default_models_dir()
         if weights.missing(d, [weights.GFPGAN_FILE]):
             return "Vision request ran; the GFPGAN weights are not downloaded: network not run"
