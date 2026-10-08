@@ -1,0 +1,36 @@
+# Builds the SwiftUI app on a macOS 26 runner (which has Xcode 26 and a display), starts it in each of its
+# main states and photographs the window. Manual: Actions > App screenshots > Run workflow.
+name: App screenshots
+on:
+  workflow_dispatch:
+
+jobs:
+  shots:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install the engine's Python packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch torchvision spandrel pillow numpy tifffile pyobjc-framework-Quartz
+      - name: Fetch the model files (checked against their SHA-256)
+        run: python enhance.py --download-models photo
+      - name: Swift tests
+        run: cd app && swift test
+      - name: Build the app (window only; the engine is this checkout's Python)
+        run: SKIP_ENGINE=1 PYTHON=python ./packaging/build_swift_app.sh
+      - name: Screenshots
+        run: |
+          python packaging/sample_picture.py shots-input.jpg
+          export MAC_IMAGE_ENHANCER_ENGINE="$(which python)|$PWD/enhance.py"
+          python packaging/screenshots_app.py "dist/Mac Image Enhancer.app" shots "$PWD/shots-input.jpg"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: app-screenshots
+          path: |
+            shots/*.png
+            shots/*.log

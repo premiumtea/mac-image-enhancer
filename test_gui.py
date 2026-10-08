@@ -36,7 +36,8 @@ for node in ast.walk(tree):
             asked.add(node.args[pos].value)
 assert len(asked) > 40, f"found only {len(asked)} text keys in calls: the scan no longer reads gui.py properly"
 assert asked <= set(en), f"gui.py asks for text that does not exist: {asked - set(en)}"
-assert not set(en) - constants, f"translations gui.py never uses: {set(en) - constants}"
+SWIFT_ONLY = {"download_btn", "later_btn", "faces_off_note", "engine_missing", "marker_label", "orient_landscape", "orient_portrait", "drop_hint"}  # the SwiftUI app's, not Tk's
+assert not set(en) - constants - SWIFT_ONLY, f"translations gui.py never uses: {set(en) - constants - SWIFT_ONLY}"
 print(f"all {len(asked)} text keys gui.py asks for exist, and every translation is used")
 
 try:

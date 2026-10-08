@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key><string>Mac Image Enhancer</string>
+    <key>CFBundleDisplayName</key><string>Mac Image Enhancer</string>
+    <key>CFBundleIdentifier</key><string>org.mac-image-enhancer.MacImageEnhancer</string>
+    <key>CFBundleExecutable</key><string>MacImageEnhancer</string>
+    <key>CFBundleIconFile</key><string>MacImageEnhancer</string>
+    <key>CFBundlePackageType</key><string>APPL</string>
+    <key>CFBundleShortVersionString</key><string>__VERSION__</string>
+    <key>CFBundleVersion</key><string>__VERSION__</string>
+    <key>CFBundleDevelopmentRegion</key><string>en</string>
+    <key>CFBundleLocalizations</key><array><string>en</string><string>th</string><string>zh-Hans</string><string>fr</string></array>
+    <key>LSMinimumSystemVersion</key><string>13.0</string>
+    <key>NSHighResolutionCapable</key><true/>
+    <key>NSPrincipalClass</key><string>NSApplication</string>
+    <key>LSApplicationCategoryType</key><string>public.app-category.photography</string>
+    <key>NSHumanReadableCopyright</key><string>Copyright (c) 2026 mac-image-enhancer contributors. MIT License.</string>
+    <key>CFBundleDocumentTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeName</key><string>Picture</string>
+            <key>CFBundleTypeRole</key><string>Viewer</string>
+            <key>LSHandlerRank</key><string>Alternate</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>public.jpeg</string><string>public.png</string><string>public.tiff</string>
+                <string>com.microsoft.bmp</string><string>org.webmproject.webp</string><string>public.heic</string>
+            </array>
+        </dict>
+    </array>
+</dict>
+</plist>

@@ -12,7 +12,9 @@ import hashlib
 import json
 import math
 import os
+import signal
 import sys
+import threading
 
 __version__ = "0.1.0"
 
@@ -51,10 +53,10 @@ def target_pixels(w, h, unit="cm", dpi=150):
 def aspect_crop_box(w, h, ratio):
     """Centered crop box (l, t, r, b) of a w x h image to width/height == ratio."""
     if w / h > ratio:
-        nw = round(h * ratio)
+        nw = max(round(h * ratio), 1)  # never an empty crop: a 2 px wide picture printed 5:1 once divided by zero
         x0 = (w - nw) // 2
         return x0, 0, x0 + nw, h
-    nh = round(w / ratio)
+    nh = max(round(w / ratio), 1)
     y0 = (h - nh) // 2
     return 0, y0, w, y0 + nh
 
@@ -815,6 +817,45 @@ def run_batch(jobs, resume=False, on_job=None, **opts):
     return done, skipped, failed
 
 
+def emit(event, **fields):
+    """One machine-readable line on stdout (--json): {"event": ..., ...}. The macOS app reads these."""
+    print(json.dumps({"event": event, **fields}, ensure_ascii=False), flush=True)
+
+
+def engine_info(models_dir):
+    """What the app needs to know before it starts: version, optional features, and which weight files
+    each group still lacks (and how many bytes that is), without importing torch."""
+    import importlib.util
+    groups = {}
+    for group, names in weights.GROUPS.items():
+        lacking = weights.missing(models_dir, names)
+        groups[group] = {"files": names, "missing": lacking,
+                         "missing_bytes": sum(weights.FILES[n][2] for n in lacking if n in weights.FILES)}
+    try:
+        import faces as face_lib
+        face_min = face_lib.MIN_FACE_PX
+    except ImportError:
+        face_min = 32
+    return {"version": __version__, "models_dir": models_dir, "groups": groups, "face_min_px": face_min,
+            "coreml": importlib.util.find_spec("coremltools") is not None,
+            "vision": importlib.util.find_spec("Vision") is not None}
+
+
+def plain_preview(src, size, unit, dpi, preview, out_size):
+    """What a --preview area looks like enlarged the plain way (Lanczos, no AI): a PIL image of `out_size`.
+    `preview` is (center, size) as parse_preview gives it. This is the 'before' of a before/after comparison."""
+    from PIL import Image, ImageOps
+
+    import color
+    raw = Image.open(src)
+    img, _ = color.to_working_rgb(ImageOps.exif_transpose(raw), raw.info.get("icc_profile"))
+    tw, th, crop, _ = plan_print(img.size, size, unit, dpi)
+    x0, y0, x1, y1 = preview_region(tw, th, *preview)
+    cw, ch = crop[2] - crop[0], crop[3] - crop[1]
+    box = (crop[0] + x0 * cw / tw, crop[1] + y0 * ch / th, crop[0] + x1 * cw / tw, crop[1] + y1 * ch / th)
+    return img.resize(out_size, Image.LANCZOS, box=box)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--version", action="version", version=f"mac-image-enhancer {__version__}")
@@ -871,9 +912,41 @@ def main():
     ap.add_argument("--resume", action="store_true",
                     help="skip inputs whose output was already written by an identical job "
                          "(recorded in %s next to the outputs)" % MANIFEST)
+    ap.add_argument("--preview-plain", metavar="PNG",
+                    help="with --preview: also write the same area enlarged the plain way (no AI), to compare")
+    ap.add_argument("--json", action="store_true",
+                    help="machine-readable mode for the macOS app: progress and results as one JSON object per "
+                         "line on stdout, SIGTERM cancels cleanly (the human log stays on stderr)")
+    ap.add_argument("--info", action="store_true",
+                    help="print one JSON object (version, optional features, missing weight files) and exit")
     ap.add_argument("-o", "--out", help="output file; for several inputs a directory or a template "
                                         "like 'out/{stem}.tif' (default out.png, or .tif for --bits 16/CMYK)")
     a = ap.parse_args()
+    if a.info:
+        print(json.dumps(engine_info(a.models_dir), ensure_ascii=False))
+        return
+    if a.json:
+        stop = threading.Event()
+        signal.signal(signal.SIGTERM, lambda *_: stop.set())
+        try:
+            run(ap, a, stop)
+        except SystemExit as e:
+            if e.code in (0, None):
+                raise
+            emit("error", message=str(e.code) if not isinstance(e.code, int) else f"exit code {e.code}")
+            sys.exit(e.code if isinstance(e.code, int) else 1)
+        except InterruptedError:
+            emit("cancelled")
+            sys.exit(130)
+        except Exception as e:
+            emit("error", message=f"{type(e).__name__}: {e}")
+            sys.exit(1)
+        return
+    run(ap, a)
+
+
+def run(ap, a, stop=None):
+    """The body of main(). With `stop` (a threading.Event) it reports as JSON lines and honours cancel."""
     if a.selftest:
         import selftest
         sys.exit(selftest.run(window=False))
@@ -881,12 +954,17 @@ def main():
         for name in weights.missing(a.models_dir, weights.GROUPS[a.download_models]):
             size = weights.FILES[name][2]
             print(f"downloading {name} ({size / 2 ** 20:.1f} MB) ...", file=sys.stderr)
+            progress = None
+            if stop is not None:
+                progress = lambda d, t, name=name: emit("download", name=name, done=d, total=t)
             try:
-                weights.download(name, a.models_dir)
+                weights.download(name, a.models_dir, progress=progress, cancel=stop.is_set if stop else None)
             except (OSError, ValueError) as e:
                 sys.exit(str(e))
         print(f"models ready in {a.models_dir}", file=sys.stderr)
         if not a.images:
+            if stop is not None:
+                emit("done", outputs=[], failed=[])
             return
     if not a.images:
         ap.error("the following arguments are required: image")
@@ -920,6 +998,8 @@ def main():
             ap.error(str(e))
     elif a.preview_size != DEFAULT_PREVIEW_SIZE:
         ap.error("--preview-size needs --preview")
+    if a.preview_plain and (preview is None or len(a.images) != 1):
+        ap.error("--preview-plain needs --preview and exactly one image")
     if a.weights:
         if a.denoise is not None:
             ap.error("--denoise cannot be combined with --weights")
@@ -929,14 +1009,31 @@ def main():
             recipe = model_recipe(a.model, a.denoise, a.models_dir)
         except ValueError as e:
             ap.error(str(e))
+    hooks = {}
+    if stop is not None:
+        shown = [-1]
+
+        def progress(fraction):
+            tenth_percent = int(fraction * 1000)
+            if tenth_percent != shown[0]:
+                shown[0] = tenth_percent
+                emit("progress", fraction=round(fraction, 4))
+        hooks = dict(progress=progress, cancel=stop.is_set,
+                     on_job=lambda i, n, src, dst: (shown.__setitem__(0, -1), emit("job", i=i, n=n, src=src, dst=dst)))
+    on_job = hooks.pop("on_job", None)
     done, skipped, failed = run_batch(
-        list(zip(a.images, outs)), a.resume, size=a.size, unit=a.unit, dpi=a.dpi, recipe=recipe,
+        list(zip(a.images, outs)), a.resume, on_job=on_job, **hooks, size=a.size, unit=a.unit, dpi=a.dpi, recipe=recipe,
         device_pref=a.device, tile=a.tile, bits=a.bits, cmyk_profile=a.cmyk_profile, intent=a.intent,
         preview=preview, compress=a.tiff_compress, mem_mb=a.mem, engine=a.engine,
         faces=a.faces, face_strength=a.face_strength, face_color=a.face_color, face_min=a.face_min_size,
         models_dir=a.models_dir)
+    if a.preview_plain and not failed:
+        from PIL import Image
+        plain_preview(a.images[0], a.size, a.unit, a.dpi, preview, Image.open(outs[0]).size).save(a.preview_plain)
     if len(a.images) > 1:
         print(f"done {done}, skipped {skipped}, failed {len(failed)}", file=sys.stderr)
+    if stop is not None:
+        emit("done", outputs=outs, skipped=skipped, failed=failed)
     sys.exit(1 if failed else 0)
 
 

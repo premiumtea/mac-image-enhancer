@@ -17,6 +17,9 @@ assert sum((x1 - x0) * (y1 - y0) for x0, y0, x1, y1 in tile_boxes(1000, 700, 256
 assert aspect_crop_box(1000, 1000, 2.0) == (0, 250, 1000, 750)
 assert aspect_crop_box(1000, 500, 1.0) == (250, 0, 750, 500)
 assert aspect_crop_box(1000, 500, 2.0) == (0, 0, 1000, 500)
+# an extreme proportion keeps at least one pixel (it used to give an empty crop and divide by zero in plan_print)
+assert aspect_crop_box(2, 3000, 5.0) == (0, 1499, 2, 1500) or aspect_crop_box(2, 3000, 5.0)[3] - aspect_crop_box(2, 3000, 5.0)[1] >= 1
+assert aspect_crop_box(3000, 2, 0.001)[2] - aspect_crop_box(3000, 2, 0.001)[0] >= 1
 
 # plan_passes: properties any sane policy must satisfy
 try:
@@ -1011,6 +1014,96 @@ for extra in (["--engine", "ane", "--device", "cpu"], ["--engine", "gpu16", "--b
                        capture_output=True, text=True, cwd=os.path.dirname(os.path.abspath(__file__)))
     assert r.returncode == 2 and "engine" in r.stderr, (extra, r.returncode, r.stderr[-200:])  # before any work
 print("preview cli ok")
+
+# ---- the machine interface the macOS app uses: --json, --info, --preview-plain, SIGTERM ------------
+try:
+    import json as _json
+    import signal as _signal
+    import tempfile as _tmp
+
+    import numpy as np
+    import torch
+    from PIL import Image
+    from spandrel.architectures.Compact.__arch.SRVGG import SRVGGNetCompact
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    torch.manual_seed(0)
+    net = SRVGGNetCompact(num_feat=8, num_conv=2, upscale=4, act_type="prelu")
+    with _tmp.TemporaryDirectory() as d:
+        # --info: no torch needed, says what is missing and how many bytes it is
+        mdir = os.path.join(d, "models")
+        r = subprocess.run([sys.executable, "enhance.py", "--info", "--models-dir", mdir], capture_output=True, text=True, cwd=here)
+        info = _json.loads(r.stdout)
+        assert r.returncode == 0 and info["version"] == __import__("enhance").__version__ and info["models_dir"] == mdir, r.stderr
+        assert info["groups"]["photo"]["missing"] == [PHOTO_FILE] and info["groups"]["photo"]["missing_bytes"] == 67040989
+        assert info["groups"]["faces"]["missing_bytes"] == 348632874 and isinstance(info["vision"], bool) and info["face_min_px"] == 32
+        os.makedirs(mdir)
+        open(os.path.join(mdir, PHOTO_FILE), "wb").write(b"x" * 67040989)  # right size: counts as present
+        r = subprocess.run([sys.executable, "enhance.py", "--info", "--models-dir", mdir], capture_output=True, text=True, cwd=here)
+        assert _json.loads(r.stdout)["groups"]["photo"]["missing"] == []
+
+        wpath = os.path.join(d, "tiny.pth")
+        torch.save({"params": net.state_dict()}, wpath)
+        a, b = os.path.join(d, "a.png"), os.path.join(d, "b.png")
+        rng = np.random.default_rng(8)
+        Image.fromarray((rng.random((30, 40, 3)) * 255).astype(np.uint8)).save(a)
+        Image.fromarray((rng.random((40, 40, 3)) * 255).astype(np.uint8)).save(b)
+        base = ["--weights", wpath, "--device", "cpu", "--tile", "16", "--size", "1.2", "--unit", "in", "--dpi", "100", "--json"]
+
+        def events(proc_out):
+            return [_json.loads(line) for line in proc_out.splitlines()]  # every stdout line must be JSON
+        out_dir = os.path.join(d, "out") + "/"
+        r = subprocess.run([sys.executable, "enhance.py", a, b, *base, "-o", out_dir], capture_output=True, text=True, cwd=here)
+        ev = events(r.stdout)
+        assert r.returncode == 0, r.stderr[-300:]
+        assert [e["i"] for e in ev if e["event"] == "job"] == [1, 2] and ev[-1]["event"] == "done" and len(ev[-1]["outputs"]) == 2
+        fr = [e["fraction"] for e in ev if e["event"] == "progress"]
+        assert len(fr) > 4 and all(0 <= f <= 1 for f in fr) and fr[-1] == 1.0
+        segment, segments = [], []  # the fraction runs forward within a job and starts again with the next one
+        for e in ev:
+            if e["event"] == "job" and segment:
+                segments.append(segment)
+                segment = []
+            elif e["event"] == "progress":
+                segment.append(e["fraction"])
+        segments.append(segment)
+        assert len(segments) == 2 and all(sg == sorted(sg) and sg[-1] == 1.0 for sg in segments), segments
+        # a failure is an event too, not just stderr text, and the exit code says so
+        r = subprocess.run([sys.executable, "enhance.py", a, "--weights", os.path.join(d, "missing.pth"), "--device", "cpu",
+                            "--size", "1.2", "--unit", "in", "--dpi", "100", "--json", "-o", os.path.join(d, "x.png")],
+                           capture_output=True, text=True, cwd=here)
+        ev = events(r.stdout)
+        assert r.returncode == 1 and ev[-1]["event"] == "error" and ev[-1]["message"], (r.stdout, r.stderr[-200:])
+        # --preview-plain: the same area, enlarged the plain way, the same size as the AI preview
+        pv, plain = os.path.join(d, "pv.png"), os.path.join(d, "plain.png")
+        r = subprocess.run([sys.executable, "enhance.py", a, *base, "--preview", "0.5,0.5", "--preview-size", "60x50", "-o", pv,
+                            "--preview-plain", plain], capture_output=True, text=True, cwd=here)
+        assert r.returncode == 0, r.stderr[-300:]
+        ai, pl = Image.open(pv), Image.open(plain)
+        assert ai.size == pl.size == (60, 50) and np.abs(np.asarray(ai, int) - np.asarray(pl, int)).mean() > 1
+        r = subprocess.run([sys.executable, "enhance.py", a, b, *base, "--preview-plain", plain, "-o", out_dir], capture_output=True,
+                           text=True, cwd=here)
+        assert r.returncode == 2 and "preview-plain" in r.stderr  # needs --preview and one image
+        # SIGTERM is a clean cancel: a "cancelled" event, exit 130, nothing half-written
+        big = os.path.join(d, "big")
+        os.makedirs(big)
+        proc = subprocess.Popen([sys.executable, "enhance.py", a, "--weights", wpath, "--device", "cpu", "--tile", "16", "--size", "40",
+                                 "--unit", "in", "--dpi", "100", "--json", "-o", os.path.join(big, "big.tif")],
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=here)
+        seen = []
+        for line in proc.stdout:
+            seen.append(_json.loads(line))
+            if seen[-1]["event"] == "progress":
+                proc.send_signal(_signal.SIGTERM)
+                break
+        rest = proc.stdout.read()
+        proc.wait(timeout=60)
+        seen += [_json.loads(line) for line in rest.splitlines()]
+        assert proc.returncode == 130 and seen[-1]["event"] == "cancelled", (proc.returncode, seen[-2:])
+        assert os.listdir(big) == [] or all(f.startswith(".") and not f.endswith(".partial") for f in os.listdir(big)), os.listdir(big)
+    print("engine json interface ok")
+except ImportError as e:
+    print(f"engine json interface: skipped ({e.name} missing)")
 
 # EXIF orientation + ICC survive (needs Pillow; shrinking path, so no weights/AI)
 try:
