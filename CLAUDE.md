@@ -254,7 +254,7 @@ from github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.p
    dmg -> GitHub release). Both parse as YAML and NEITHER HAS EVER RUN (no git repo, no remote); action
    versions are from memory. Homebrew: `packaging/homebrew/mac-enhancer.rb` is a cask TEMPLATE
    (needs OWNER + a released dmg's sha256), untested.
-   **Open (needs the user):** `git init` + a GitHub repo (CI, releases, cask all wait on it); an Apple
+   **Open (needs the user):** a GitHub repo to push to (the local repo exists; CI, releases and the cask all wait on a remote); an Apple
    Developer ID for signing + notarization (until then a downloaded app needs right-click > Open);
    the bundle id `org.mac-enhancer.MacEnhancer` is a placeholder; the .app has no `--engine ane`
    (coremltools not bundled; deciding to bundle it adds ~100 MB, untested); the bundle was only run on
@@ -263,6 +263,7 @@ from github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.p
 ## Notes
 - Work and test here on the Mac (MPS). Linux CI/NAS has no MPS: CPU-only checks.
 - Ask the user before downloading model files or other large assets.
-- Project is not yet a git repo; `.gitignore` excludes .venv, models, build/, dist/, images and test outputs.
+- Local git repo on branch `main` (initial commit 4f40974, 2026-10-08, 23 files, 324 KB); there is NO remote yet.
+  `.gitignore` excludes .venv, models, build/, dist/, images and test outputs. Commits use the user's own git identity.
 - No display on this Mac: GUI work cannot be looked at, only driven (test_gui.py) and audited for geometry.
 - dist/ (app + dmg, ~760 MB) is gitignored build output, reproducible with packaging/build_app.sh.
