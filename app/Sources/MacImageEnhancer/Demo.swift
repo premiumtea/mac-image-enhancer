@@ -23,7 +23,7 @@ enum Demo {
                 model.heightText = "33.8"
                 model.load([URL(fileURLWithPath: path)])
                 try? await Task.sleep(nanoseconds: 1_200_000_000)
-                model.center = CGPoint(x: 0.62, y: 0.55)
+                model.center = CGPoint(x: 0.56, y: 0.70)  // the mountain edge: where before and after differ
             }
             switch scenario {
             case "faces": model.faces = true

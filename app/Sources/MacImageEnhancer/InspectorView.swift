@@ -14,7 +14,10 @@ struct InspectorView: View {
                     FacesSection()
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.bottom, 14)
             }
+            .mask(LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: 0.93), .init(color: .clear, location: 1)],
+                                 startPoint: .top, endPoint: .bottom))
             Button { model.showAdvanced = true } label: {
                 HStack {
                     Text(verbatim: model.t("advanced_btn").replacingOccurrences(of: "…", with: ""))

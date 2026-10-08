@@ -57,8 +57,9 @@ final class AppModel: ObservableObject {
 
     // MARK: the choices (saved between runs)
     @Published var preset: String
-    @Published var widthText: String { didSet { if !quiet { sizeEdited(.width) } } }
-    @Published var heightText: String { didSet { if !quiet { sizeEdited(.height) } } }
+    // (a text field writes its text back when it loses focus, even if unchanged: that is not typing)
+    @Published var widthText: String { didSet { if !quiet && widthText != oldValue { sizeEdited(.width) } } }
+    @Published var heightText: String { didSet { if !quiet && heightText != oldValue { sizeEdited(.height) } } }
     @Published var unit: Unit { didSet { optionChanged() } }
     @Published var dpi: Int { didSet { optionChanged() } }
     @Published var model: PictureModel { didSet { optionChanged() } }
@@ -105,7 +106,7 @@ final class AppModel: ObservableObject {
 
     // MARK: setup
 
-    init(l10n: L10n, defaults: UserDefaults = .standard, engine: EngineCommand? = EngineCommand.locate()) {
+    init(l10n: L10n, defaults: UserDefaults = .standard, engine: EngineCommand? = EngineCommand.locate(), loadInfo: Bool = true) {
         self.l10n = l10n
         self.defaults = defaults
         self.engineCommand = engine
@@ -127,7 +128,7 @@ final class AppModel: ObservableObject {
         try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         objectWillChange.debounce(for: .seconds(1), scheduler: RunLoop.main).sink { [weak self] in self?.persist() }.store(in: &bag)
         applyPreset()
-        refreshInfo()
+        if loadInfo { refreshInfo() }
     }
 
     func refreshInfo() {
@@ -378,8 +379,8 @@ final class AppModel: ObservableObject {
         guard let p = pendingDownload else { return }
         pendingDownload = nil
         guard yes else { fail("weights_declined"); return }
+        begin(.download)
         Task {
-            begin(.download)
             for g in p.groups {
                 let outcome = await runEngine(["--download-models", g, "--json"]) { ev in
                     if case .download(let name, let done, let total) = ev, total > 0 {
@@ -419,8 +420,8 @@ final class AppModel: ObservableObject {
                    "--preview-plain", plainURL.path, "-o", resultURL.path]
         let args = o.args
         ensureWeights(o) { [self] in
+            begin(.preview)  // right away, not inside the task: a second click must find the window busy
             Task {
-                begin(.preview)
                 let outcome = await runEngine(args) { ev in
                     if case .progress(let f) = ev { advance(f, statusKey: "working", args: ["pct": Int(100 * f)]) }
                 }
@@ -496,8 +497,8 @@ final class AppModel: ObservableObject {
         lastDir = (single ? destination.deletingLastPathComponent() : destination).path
         let args = o.args + ["-o", out]
         ensureWeights(o) { [self] in
+            begin(.save)
             Task {
-                begin(.save)
                 var job = (i: 1, n: images.count, name: images.first?.lastPathComponent ?? "")
                 let outcome = await runEngine(args) { ev in
                     switch ev {
