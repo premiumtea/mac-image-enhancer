@@ -176,21 +176,34 @@ final class EngineTests: XCTestCase {
     /// pipe with FileHandle.bytes once never saw the end of such an output, and the window stayed "working" for good.)
     func testQuickProcessesAlwaysFinish() async throws {
         let line = #"{"event": "done", "outputs": [], "skipped": 0, "failed": []}"#
+        final class Box: @unchecked Sendable {
+            let lock = NSLock()
+            var events: [EngineEvent] = []
+            func add(_ e: EngineEvent) { lock.lock(); events.append(e); lock.unlock() }
+        }
         for round in 0..<300 {
             let run = try EngineRun(command: EngineCommand(executable: URL(fileURLWithPath: "/bin/echo"), prefixArgs: []), arguments: [line])
-            var got: [EngineEvent] = []
-            let finished = await withTaskGroup(of: Bool.self) { group in
-                group.addTask { for await e in run.events { got.append(e) }; return true }
-                group.addTask { try? await Task.sleep(nanoseconds: 10_000_000_000); return false }
-                let first = await group.next() ?? false
-                group.cancelAll()
-                return first
-            }
-            XCTAssertTrue(finished, "round \(round): the output never ended")
-            if !finished { return }
-            XCTAssertEqual(got, [.done(outputs: [], skipped: 0, failed: [])], "round \(round)")
+            let box = Box()
+            let ended = expectation(description: "round \(round): the output ends")
+            Task { for await e in run.events { box.add(e) }; ended.fulfill() }
+            await fulfillment(of: [ended], timeout: 10)  // (an expectation, so a stream that never ends fails the test instead of hanging it)
+            XCTAssertEqual(box.events, [.done(outputs: [], skipped: 0, failed: [])], "round \(round)")
+            if box.events.isEmpty { return }
             _ = await run.waitUntilExit()
         }
+    }
+
+    /// Another process (here a background `sleep`) holding the pipe open must not keep the stream open after the engine itself
+    /// has ended: its output is all in the pipe already.
+    func testStreamEndsEvenIfAnotherProcessHoldsThePipe() async throws {
+        let line = #"{"event": "cancelled"}"#
+        let run = try EngineRun(command: EngineCommand(executable: URL(fileURLWithPath: "/bin/sh"), prefixArgs: []),
+                                arguments: ["-c", "echo '\(line)'; (sleep 6 &)"])
+        let started = Date()
+        var got: [EngineEvent] = []
+        for await e in run.events { got.append(e) }
+        XCTAssertEqual(got, [.cancelled])
+        XCTAssertLessThan(Date().timeIntervalSince(started), 4, "the stream waited for the straggler")
     }
 
     func testInfoDecodes() throws {

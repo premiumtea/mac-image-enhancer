@@ -9,6 +9,7 @@ on:
 
 jobs:
   tests:
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -43,6 +44,7 @@ jobs:
   # files must be current, the Swift tests must pass (they include a real engine round trip), and the app must build.
   swift:
     runs-on: macos-26
+    timeout-minutes: 15   # a hung test must fail with its log, not sit there for hours
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

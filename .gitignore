@@ -15,3 +15,8 @@ dist/
 *.tif
 *.tiff
 !packaging/**/*.png
+
+# Swift build output and Xcode/SwiftPM state
+.build/
+.swiftpm/
+app/.build/

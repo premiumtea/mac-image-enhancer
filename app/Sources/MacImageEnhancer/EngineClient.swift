@@ -91,8 +91,9 @@ enum EngineError: LocalizedError {
 ///
 /// The output is read with a readability handler and split into lines here, not with `FileHandle.bytes`: with that, a
 /// process that was over almost as soon as it started could leave the stream open for good (found by the flow tests on
-/// a CI runner: the window stayed "working" forever). As a second guard, once the process has ended the pipe is drained
-/// and the stream finished even if the pipe never reported its end.
+/// a CI runner: the window stayed "working" forever). As a second guard, once the process has ended what is left in the
+/// pipe is read without waiting and the stream finished, even if the pipe never reports its end (a pipe's end only comes
+/// when every copy of its write side is closed, and a copy can be held by another process started at the same moment).
 final class EngineRun {
     let events: AsyncStream<EngineEvent>
     private let process = Process()
@@ -130,7 +131,7 @@ final class EngineRun {
         }
         reader.readabilityHandler = { [weak self] h in self?.received(h.availableData) }
         process.terminationHandler = { [weak self] _ in
-            DispatchQueue.global().asyncAfter(deadline: .now() + 1.5) { self?.drainAndFinish() }
+            DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) { self?.drainAndFinish() }
         }
         try process.run()
     }
@@ -156,14 +157,22 @@ final class EngineRun {
         }
     }
 
-    /// The process is over: take whatever is left in the pipe and close the stream.
+    /// The process is over, so everything it wrote is already in the pipe: take it without waiting for an end that may
+    /// never be reported, and close the stream.
     private func drainAndFinish() {
         lock.lock()
         let done = finished
         lock.unlock()
         if done { return }
         reader.readabilityHandler = nil
-        if let rest = try? reader.readToEnd(), !rest.isEmpty { received(rest) }
+        let fd = reader.fileDescriptor
+        _ = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)
+        var buffer = [UInt8](repeating: 0, count: 65536)
+        while true {
+            let n = read(fd, &buffer, buffer.count)
+            if n <= 0 { break }  // 0: the end; -1: nothing more to read right now
+            received(Data(buffer[0..<n]))
+        }
         received(Data())
     }
 
