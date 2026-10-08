@@ -465,7 +465,7 @@ class App:
         for key in ("faces", "face_strength"):
             self.v[key].trace_add("write", self.on_option_change)
         self.advanced_btn = self._reg(ttk.Button(panel, command=self.show_advanced), "advanced_btn")
-        self.advanced_btn.pack(anchor="w", pady=(14, 0))
+        self.advanced_btn.pack(anchor="w", pady=(10, 0))
 
         # the bar
         ttk.Separator(r).grid(row=1, column=0, sticky="ew")
@@ -494,7 +494,7 @@ class App:
 
     def _section(self, parent, key, number):
         """A step heading: its number in a blue disc, then its title."""
-        ttk.Separator(parent).pack(fill="x", pady=(12, 8))
+        ttk.Separator(parent).pack(fill="x", pady=(10, 6))
         row = ttk.Frame(parent)
         row.pack(fill="x", pady=(0, 6))
         disc = tk.Canvas(row, width=24, height=24, highlightthickness=0, bd=0, background=self.panel_bg)
@@ -811,6 +811,7 @@ class App:
             self.hint.pack_forget()
             self._view = None
             self.draw_stage()
+            self.root.after_idle(self.fit_window)
             return
         tw, th, crop, passes = plan
         cw, ch = crop[2] - crop[0], crop[3] - crop[1]
@@ -823,6 +824,7 @@ class App:
         self.scale_note.configure(text=self.t("scale_note", scale=scale) if passes else "")
         self.crop_note.configure(text=self.t("crop_note") if (cw, ch) != self.src_size else "")
         self.draw_stage()
+        self.root.after_idle(self.fit_window)
 
     # -- the stage -------------------------------------------------------------------------------
     def draw_stage(self):
@@ -1221,7 +1223,7 @@ def main():
         print(f"mac-image-enhancer {E.__version__}")
         return
     root = tk.Tk()
-    root.geometry("1120x740")
+    root.geometry("1120x780")
     app = App(root)
     paths = [a for a in args if not a.startswith("-") and os.path.isfile(a)]
     if paths:

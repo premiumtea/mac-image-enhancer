@@ -40,11 +40,20 @@ installed copy). The window offers to download them the first time they are need
 
 ## Use
 
-The window:
+The window (three steps, no settings form):
 
 ```sh
 .venv/bin/mac-image-enhancer-gui
 ```
+
+1. **Choose a picture** (or drop pictures on the app icon, or use Open With in Finder), then pick a **paper
+   size** (A4 to A0, 24×36″, or your own width and height).
+2. Pick a **print quality**. A coloured note tells you in plain words whether the picture will stay sharp at that
+   size, and how far it is being stretched.
+3. Press **Save**. If you want to see it first, click the part of the picture you care about and press
+   **Preview**: the result for that area is shown at 100%, with a line to drag between before and after.
+
+Face recovery (a switch), the picture type, processor, 16-bit colour and CMYK are under **Advanced…**.
 
 The command line:
 

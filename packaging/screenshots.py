@@ -57,7 +57,7 @@ def main():
     pic = sample_picture(os.path.join(work, "holiday.jpg"))
 
     root = tk.Tk()
-    root.geometry("1120x740+40+60")
+    root.geometry("1120x780+40+60")
     app = gui.App(root, settings_path=os.path.join(work, "settings.json"), models_dir=models)
     app.lang = "en"
     app.relabel()

@@ -225,20 +225,37 @@ from github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.p
    where cancel stops the whole batch, `plan_print` (size fields -> px, crop, passes; shared by CLI and
    GUI), `--device gpu`.
    `gui.py` (Tk 9.1; `brew install python-tk@3.12` was approved and run 2026-10-08, which also moved
-   python@3.12 to 3.12.15): open images (several = batch), width/height/unit/DPI with the live pixel
-   count and AI-pass plan, the thumbnail shows the print's aspect-cropped picture so a click is exactly
-   a `--preview` centre, Preview runs `enhance(preview=)` in a worker thread and shows result vs
-   plainly enlarged original, model/denoise/processor (Auto, CPU, GPU, GPU fp16, ANE)/format/16-bit/CMYK
-   profile/compress, progress + cancel, a download prompt for missing weights, settings in Application
-   Support (validated on load), en/th/zh/fr. `i18n.py` strings are our own; th/zh/fr are drafts for
-   native review (tests check key + placeholder parity and that gui.py uses every string). Status
-   text is kept as keys so it follows a language change (a test caught text frozen in the old language).
-   **Nobody has looked at the window.** This Mac mini has no display (`screencapture` fails with "could
-   not create image from display"). What exists instead: `test_gui.py` driving the real Tk window
-   (preview, batch save, 16-bit, cancel, weights prompt + download, settings round trip, language
-   switching) and a geometry audit (no clipped, zero-size or overflowing widget in the 4 languages at
-   1040x700 and the 980x640 minimum; a negative control with a 420x300 window is flagged). The preview
-   image the window produced was viewed and is a correct 640x480 crop. Expect cosmetic issues.
+   python@3.12 to 3.12.15). **Redesigned 2026-10-08 for ordinary end users** (the user asked for a window that is
+   nice to look at and use, to ship as a package): the stage on the left is empty (glyph + "Choose a picture"),
+   the picture with the yellow preview marker (a click = a `--preview` centre), or the before/after comparison
+   of the real preview at 100% with a draggable line; the right panel is three numbered steps: 1 paper size
+   (chips A4..A0 and 24x36", or Custom; the sheet turns to the picture's orientation; typing a width makes the
+   height follow the picture until a height is typed, otherwise the picture is cropped to fit), 2 quality
+   (Standard/Good/Fine = 150/200/300 DPI, plus a coloured pill telling how far the picture is stretched:
+   <=1x sharp, <=4x good, <=8x soft, else "bigger original would help"), 3 options (face recovery switch with its
+   warning; Advanced window: picture type + noise removal, processor, DPI, 16-bit, CMYK profile, TIFF compress).
+   Bottom bar: result size, progress + time left (extrapolated after 4 s), Preview, Save (default button).
+   Save asks for a file name (one picture) or a folder (several); 16-bit/CMYK force `.tif` and say so;
+   "Show in Finder" afterwards. Also: menu bar + shortcuts (⌘O/⌘S/⌘P), About, Finder "Open With"/Dock drops
+   via `::tk::mac::OpenDocument` (Info.plist declares the image types), argv paths, first-run language from
+   macOS (`defaults read -g AppleLanguages`), settings in Application Support (validated on load).
+   Tk has no drag-and-drop, hence the Dock drop + Open button. In-stage buttons and the switch are drawn on
+   canvases: ttk buttons on the dark canvas drew a light box around themselves, and the system's own
+   "Switch.TCheckbutton"/"Accent.TButton" styles are not usable here (Save uses `default="active"`).
+   System secondary-text colours come out plain white through `winfo_rgb` (alpha ignored): greys and pills are
+   explicit per light/dark. `i18n.py` strings are our own; th/zh/fr are drafts for native review (tests check
+   key + placeholder parity and that gui.py uses every string). Status text is kept as keys so it follows a
+   language change. The window is never shorter than the steps need in the current language (`fit_window`).
+   **How the window is looked at:** Tk windows can be created on this Mac mini and `test_gui.py` drives the real
+   window (preview, compare, single/batch save, 16-bit, cancel, weights prompt, faces, advanced, settings, all
+   languages), but `screencapture` and CGWindowList capture both fail here (no display). So
+   `.github/workflows/screenshots.yml` (manual: Actions > Screenshots) starts the window on a macos-14 runner,
+   runs `packaging/screenshots.py` (real weights downloaded in the job, made-up landscape as the picture) and uploads
+   PNGs in light and dark mode: `gh workflow run screenshots.yml`, then `gh run download <id> -n screenshots`.
+   That found real bugs the geometry audit could not: panel width changing with the language (grid_propagate
+   on a frame whose children are packed), the last button cut off in French with the face note open, halos
+   around ttk buttons. Not yet looked at: the built .app itself (release.yml now has a manual run that
+   launches it and screenshots it).
    Packaging: `pyproject.toml` (setuptools >= 77, flat `py-modules`, scripts `mac-image-enhancer` and
    `mac-image-enhancer-gui`, extra `ane`; the wheel is 40 KB and holds only the modules, LICENSE and NOTICE;
    installed outside the checkout it uses the Application Support models dir). `packaging/build_app.sh`:
@@ -250,9 +267,9 @@ from github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.p
    The built app's `--selftest` passes with and without weights: both network families (Compact,
    RRDBNet), PNG + TIFF, and the real weights loaded and run on the MPS GPU inside the bundle.
    The dmg mounts and the signature verifies from it. `spctl --assess` REJECTS the app (ad hoc).
-   CI: `ci.yml` (macos-14 + ubuntu-24.04: both test files + selftest) and `release.yml` (v* tag ->
-   dmg -> GitHub release). Both parse as YAML and NEITHER HAS EVER RUN (no git repo, no remote); action
-   versions are from memory. Homebrew: `packaging/homebrew/mac-image-enhancer.rb` is a cask TEMPLATE
+   CI: `ci.yml` (macos-14 + ubuntu-24.04: the three test files + selftest; green since 2026-10-08) and
+   `release.yml` (v* tag -> dmg -> GitHub release; also a manual run that only builds, checks, screenshots the
+   launched app and uploads the dmg as an artifact). `screenshots.yml` is manual. Homebrew: `packaging/homebrew/mac-image-enhancer.rb` is a cask TEMPLATE
    (needs OWNER + a released dmg's sha256), untested.
    **Open (needs the user):** CI and the release workflow have never run (they run on the first push); the cask needs a released dmg; an Apple
    Developer ID for signing + notarization (until then a downloaded app needs right-click > Open);
@@ -270,5 +287,6 @@ from github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.p
   `mac-image-enhancer`, bundle id `org.mac-image-enhancer.MacImageEnhancer`). The local folder is still
   `/Users/wolf/mac-enhancer` (the .venv has absolute paths: rename it only together with a new venv).
   `.gitignore` excludes .venv, models, build/, dist/, images and test outputs. Commits use the user's own git identity.
-- No display on this Mac: GUI work cannot be looked at, only driven (test_gui.py) and audited for geometry.
+- No display on this Mac: Tk windows run (test_gui.py) but cannot be photographed; use the screenshots workflow (see the gui.py paragraph).
+- CI timing trap: a test that presses Cancel after a delay races a fast CPU; press it from inside the first progress report.
 - dist/ (app + dmg, ~760 MB) is gitignored build output, reproducible with packaging/build_app.sh.

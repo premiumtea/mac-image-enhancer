@@ -489,6 +489,13 @@ with tempfile.TemporaryDirectory() as d:
         # the note sits right under the switch, not after the Advanced button
         order = [str(w) for w in app.panel.pack_slaves()]
         assert order.index(str(app.faces_extra)) == order.index(str(app.faces_row)) + 1
+        root.update()
+        root.geometry("1120x500")  # try to squeeze the window: it must stop at what the steps need, with the note open
+        root.update()
+        assert root.winfo_height() >= app.panel.winfo_reqheight() + app.bar.winfo_reqheight(), "the panel is cut off"
+        assert root.winfo_height() > 500
+        root.geometry("1120x740")
+        root.update()
         app.v["face_strength"].set(0.5)
         o = app.collect(None)
         assert o["faces"] is True and o["face_strength"] == 0.5 and o["models_dir"] == mdir
