@@ -132,6 +132,8 @@ final class AppModel: ObservableObject {
         tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("mac-image-enhancer-\(ProcessInfo.processInfo.processIdentifier)")
         try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         objectWillChange.debounce(for: .seconds(1), scheduler: RunLoop.main).sink { [weak self] in self?.persist() }.store(in: &bag)
+        // the language lives in its own object: the window observes this model, so pass its changes on
+        l10n.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &bag)
         applyPreset()
         if loadInfo { refreshInfo() }
     }

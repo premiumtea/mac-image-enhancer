@@ -147,6 +147,18 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(m.statusText, "Error: Open a picture first.")
     }
 
+    /// Changing the language from the menu must make the window draw again at once. (It once did not: the new text
+    /// showed up only when some other control happened to change, found by using the real app.)
+    func testChangingTheLanguageRefreshesTheWindow() {
+        let m = makeModel()
+        var fired = 0
+        let watch = m.objectWillChange.sink { fired += 1 }
+        m.l10n.lang = "th"
+        XCTAssertGreaterThan(fired, 0, "the window was not told that the language changed")
+        XCTAssertEqual(m.t("preview_btn"), L10n.text(lang: "th", "preview_btn"))
+        watch.cancel()
+    }
+
     func testOutputNames() {
         XCTAssertEqual(OutputName.fix("/x/a.png", tiffNeeded: false).path, "/x/a.png")
         XCTAssertEqual(OutputName.fix("/x/a.JPG", tiffNeeded: false).path, "/x/a.JPG")
