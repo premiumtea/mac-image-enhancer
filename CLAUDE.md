@@ -290,6 +290,21 @@ from github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.p
    committed by mistake and pushed. All commit hashes changed (v0.1.0 now points at d013320), main was force-pushed, the Release
    workflow was disabled while the tag moved so the published .dmg was not rebuilt. Old objects stay fetchable on GitHub by their
    SHA until GitHub collects them (not in our hands). A backup bundle was kept outside the repo. `.gitignore` covers `.build/`.
+   **v0.1.1 (2026-10-11):** the stream-hang and language-redraw fixes. **v0.2.0 work (same day, user said "ทำทั้งหมดเลย" to
+   the follow-up list):** found by using the released app for real on this Mac (display exists but `screencapture` fails; drive
+   it with System Events / a Swift AX tool, see `packaging/ax_dump.swift`): (1) the Language menu did not redraw the window
+   (AppModel did not forward L10n's changes); (2) reading `collect()` showed Save sent only the FIRST of several pictures to
+   the engine, with "Done. 1 file(s) saved." (fixed, `FlowTests.testBatchSavesEveryPicture`); (3) accessibility: faces switch,
+   number fields, language/unit menus unnamed, decorative icons read aloud (fixed; the CI screenshot job runs
+   `ax_dump --check` and fails on an unnamed control; it flags the released 0.1.1); (4) JPEG output used Pillow's default
+   quality 75 / 4:2:0 (now `--jpeg-quality`, default 95, 4:4:4); (5) packed engine: `multiprocessing.freeze_support()` so the
+   resource tracker started during Core ML conversion does not re-run argparse. Added: Light Mode (adaptive colours via dynamic
+   NSColor), picture strip + selected picture preview, 4x6/5x7/8x10/11x14/A5 presets, JPEG quality slider, Neural Engine in
+   the app (coremltools in the bundle: +18 MB; a 640x480 preview took 5.3 s on it vs 3.5 s on the GPU, so the label says
+   "faster on big prints"), CONTRIBUTING.md, issue/PR templates, 7 starter issues. Signing + notarization steps exist in
+   `release.yml` / `build_swift_app.sh` / `packaging/entitlements.plist` and have NEVER run (no Developer ID); they only act when
+   the repository has the secrets. CI flakiness: two Swift-job hangs were real bugs (pipe EOF); a third on 2026-10-11 left no
+   log (stdout buffered), so tests are now unbuffered (`NSUnbufferedIO=YES`) and every await in tests has a time limit.
    **Open (needs the user):** an Apple Developer ID for signing + notarization (until then a downloaded app needs Open Anyway);
    the bundle id `org.mac-image-enhancer.MacImageEnhancer` is a placeholder; the cask template (`packaging/homebrew/`) needs this
    release's sha256 and an untested install; the app has no `--engine ane` (coremltools not bundled, ~100 MB, untested);

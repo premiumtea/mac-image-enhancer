@@ -20,3 +20,6 @@ dist/
 .build/
 .swiftpm/
 app/.build/
+
+# README screenshots (taken by the "App screenshots" workflow)
+!docs/images/*.png

@@ -14,6 +14,13 @@ PNG, JPEG, 16-bit TIFF, or CMYK TIFF through your printer's ICC profile.
 - **Optional face recovery** (GFPGAN): blurry faces are re-created sharply, keeping the picture's own
   colours, in the preview and the print alike. It invents detail, so read "Good to know" first.
 - **English, Thai, Chinese and French** interface (drafts of the last three; corrections welcome).
+- **Light and Dark Mode**, usable from the keyboard and with VoiceOver (every control has a name).
+
+![The window in Light Mode: a picture, the preview frame, paper sizes and quality](docs/images/window-light.png)
+
+![Before and after at 100%, with the line to drag between them](docs/images/compare-dark.png)
+
+(Screenshots are taken by the "App screenshots" workflow on a GitHub macOS 26 runner, with a made-up picture.)
 
 The window is a native SwiftUI app. On macOS 26 it uses Apple's **Liquid Glass**: the controls float as
 glass over a glow of your own picture. On macOS 13 to 15 it falls back to frosted material (that look

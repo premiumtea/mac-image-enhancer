@@ -203,6 +203,14 @@ final class AppModelTests: XCTestCase {
     }
 }
 
+/// Events collected from a stream by a task, readable from the test.
+final class EventBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var items: [EngineEvent] = []
+    func add(_ e: EngineEvent) { lock.lock(); items.append(e); lock.unlock() }
+    var events: [EngineEvent] { lock.lock(); defer { lock.unlock() }; return items }
+}
+
 final class EngineTests: XCTestCase {
     func testEventLines() {
         XCTAssertEqual(EngineEvent(line: #"{"event": "progress", "fraction": 0.5}"#), .progress(0.5))
@@ -220,14 +228,9 @@ final class EngineTests: XCTestCase {
     /// pipe with FileHandle.bytes once never saw the end of such an output, and the window stayed "working" for good.)
     func testQuickProcessesAlwaysFinish() async throws {
         let line = #"{"event": "done", "outputs": [], "skipped": 0, "failed": []}"#
-        final class Box: @unchecked Sendable {
-            let lock = NSLock()
-            var events: [EngineEvent] = []
-            func add(_ e: EngineEvent) { lock.lock(); events.append(e); lock.unlock() }
-        }
         for round in 0..<300 {
             let run = try EngineRun(command: EngineCommand(executable: URL(fileURLWithPath: "/bin/echo"), prefixArgs: []), arguments: [line])
-            let box = Box()
+            let box = EventBox()
             let ended = expectation(description: "round \(round): the output ends")
             Task { for await e in run.events { box.add(e) }; ended.fulfill() }
             await fulfillment(of: [ended], timeout: 10)  // (an expectation, so a stream that never ends fails the test instead of hanging it)
@@ -244,9 +247,11 @@ final class EngineTests: XCTestCase {
         let run = try EngineRun(command: EngineCommand(executable: URL(fileURLWithPath: "/bin/sh"), prefixArgs: []),
                                 arguments: ["-c", "echo '\(line)'; (sleep 6 &)"])
         let started = Date()
-        var got: [EngineEvent] = []
-        for await e in run.events { got.append(e) }
-        XCTAssertEqual(got, [.cancelled])
+        let box = EventBox()
+        let ended = expectation(description: "the stream ends")
+        Task { for await e in run.events { box.add(e) }; ended.fulfill() }
+        await fulfillment(of: [ended], timeout: 20)  // (an expectation: a stream that never ended would fail, not hang, the test)
+        XCTAssertEqual(box.events, [.cancelled])
         XCTAssertLessThan(Date().timeIntervalSince(started), 4, "the stream waited for the straggler")
     }
 
@@ -264,8 +269,11 @@ final class EngineTests: XCTestCase {
         XCTAssertFalse(info.version.isEmpty)
         XCTAssertNotNil(info.groups["photo"])
         let run = try EngineRun(command: cmd, arguments: ["/no/such/picture.png", "--size", "5", "--json", "-o", NSTemporaryDirectory() + "x.png"])
-        var events: [EngineEvent] = []
-        for await e in run.events { events.append(e) }
+        let box = EventBox()
+        let ended = expectation(description: "the engine's output ends")
+        Task { for await e in run.events { box.add(e) }; ended.fulfill() }
+        await fulfillment(of: [ended], timeout: 60)
+        let events = box.events
         let code = await run.waitUntilExit()
         XCTAssertNotEqual(code, 0)
         guard case .error(let message)? = events.last else { return XCTFail("expected an error event, got \(events)") }

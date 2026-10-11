@@ -5,10 +5,17 @@ Liquid Glass.
 
 ## What is new in __VERSION__
 
-- Fixed: the window could stay on "working" for good when the engine ended almost at once (for example on a picture that
-  cannot be read). Pressing Preview or Save again now always works.
-- Fixed: choosing another language in the Language menu did not change the window until another control was touched.
-- The repository history was cleaned of build files that had been committed by mistake (no change to the app).
+- **Fixed: saving several pictures at once saved only the first one**, while saying "Done". All of them are saved now.
+- Several pictures: a strip of small pictures under the main one chooses which is shown and previewed.
+- Light Mode: the window follows the system appearance (it was dark only).
+- More paper sizes: 4×6, 5×7, 8×10 and 11×14 inches, A5.
+- JPEG quality (Advanced). JPEG prints are now saved at quality 95 without colour subsampling; before, Pillow's default
+  (75, colours at half resolution) was used, which is poor for a print.
+- The Neural Engine (about 3× faster on big prints) is in the app: Advanced > Processor. The first use converts the model
+  (a few seconds).
+- Accessibility: every control has a name for VoiceOver, the preview frame and the before/after line work with the
+  keyboard (arrow keys) and with VoiceOver's adjust.
+- Fixed earlier in 0.1.1: the window staying on "working" after a failed job, and the language menu not redrawing.
 
 ## Install
 
@@ -29,7 +36,6 @@ Check the download: `shasum -a 256 -c SHA256SUMS.txt` in the folder with both fi
   with the original before printing. Its model has licence conditions (parts are for non-commercial use): read `NOTICE`
   before using it commercially.
 - The Thai, Chinese and French texts are drafts; corrections are welcome.
-- The Neural Engine option (about 3x faster) is available in the command line tool, not in this app.
 - Everything the app does can also be done from the command line: see the README.
 
 Licence: MIT. Built on Real-ESRGAN (BSD-3-Clause), spandrel (MIT), PyTorch, Pillow, NumPy and tifffile; see `NOTICE`.

@@ -9,7 +9,7 @@
 # homebrew-cask repository expects signed and notarized apps; check its current policy before
 # submitting there.
 cask "mac-image-enhancer" do
-  version "0.1.1"
+  version "0.2.0"
   sha256 "REPLACE_WITH_THE_SHA256_OF_THE_RELEASED_DMG"
 
   url "https://github.com/premiumtea/mac-image-enhancer/releases/download/v#{version}/MacImageEnhancer-#{version}-arm64.dmg"

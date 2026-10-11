@@ -19,7 +19,7 @@ jobs:
       - name: Fetch the model files (checked against their SHA-256)
         run: python enhance.py --download-models photo
       - name: Swift tests
-        run: cd app && swift test
+        run: cd app && NSUnbufferedIO=YES swift test
       - name: Build the app (window only; the engine is this checkout's Python)
         run: SKIP_ENGINE=1 PYTHON=python ./packaging/build_swift_app.sh
       - name: Screenshots in Light Mode (and a check that every control has an accessible name)

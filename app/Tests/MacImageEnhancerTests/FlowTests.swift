@@ -26,7 +26,12 @@ final class FlowTests: XCTestCase {
         """, models.appendingPathComponent("realesr-general-x4v3.pth").path]
         make.standardError = FileHandle.nullDevice
         try make.run()
-        make.waitUntilExit()
+        let deadline = Date().addingTimeInterval(120)  // never wait for a helper without a limit
+        while make.isRunning, Date() < deadline { try await Task.sleep(nanoseconds: 100_000_000) }
+        if make.isRunning {
+            make.terminate()
+            throw XCTSkip("making the tiny model took more than 2 minutes")
+        }
         guard make.terminationStatus == 0 else { throw XCTSkip("no torch/spandrel for the engine's Python") }
         setenv("MAC_IMAGE_ENHANCER_MODELS", models.path, 1)
 
