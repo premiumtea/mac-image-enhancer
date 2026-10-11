@@ -17,6 +17,8 @@ import Quartz
 APP, OUT, IMAGE = sys.argv[1:4]
 BINARY = os.path.join(APP, "Contents/MacOS/MacImageEnhancer")
 BUNDLE_ID = "org.mac-image-enhancer.MacImageEnhancer"
+AX_TOOL = os.environ.get("AX_TOOL")  # the compiled packaging/ax_dump.swift: also check that every control has a name
+accessibility_failures = []
 # scenario, language, seconds to wait (None: until the log says the comparison is up), file name
 SCENARIOS = [("empty", "en", 5, "1-empty"), ("source", "en", 9, "2-source"), ("compare", "en", None, "3-compare"),
              ("faces", "en", 9, "4-faces"), ("advanced", "en", 9, "5-advanced"), ("saving", "en", 9, "6-saving"),
@@ -57,8 +59,16 @@ for scenario, lang, wait, name in SCENARIOS:
         else:
             r = subprocess.run(["screencapture", "-x", "-o", "-l", str(wid), path], capture_output=True, text=True)
             print(f"{name}: {'ok' if r.returncode == 0 else 'FAILED ' + r.stderr.strip()}", flush=True)
+        if AX_TOOL:  # every control a person can use must have a name (see packaging/ax_dump.swift)
+            r = subprocess.run([AX_TOOL, "MacImageEnhancer", "--check"], capture_output=True, text=True)
+            print(f"{name}: {r.stdout.strip()}", flush=True)
+            if r.returncode != 0:
+                accessibility_failures.append(f"{name}: {r.stdout.strip()}")
         proc.terminate()
         try:
             proc.wait(10)
         except subprocess.TimeoutExpired:
             proc.kill()
+if accessibility_failures:
+    print("\n".join(accessibility_failures))
+    sys.exit(1)

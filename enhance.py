@@ -602,7 +602,10 @@ def write_tiff(dst, bands, width, height, channels, dtype, rps, dpi, icc, compre
                  resolutionunit="inch", iccprofile=icc, metadata=None)
 
 
-def write_pillow(dst, fmt, bands, width, height, dpi, icc):
+DEFAULT_JPEG_QUALITY = 95  # Pillow's own default (75, colours halved in resolution) is too low for a print
+
+
+def write_pillow(dst, fmt, bands, width, height, dpi, icc, jpeg_quality=DEFAULT_JPEG_QUALITY):
     """PNG/JPEG/...: Pillow cannot stream, so the finished 8-bit RGB print is assembled in RAM."""
     import numpy as np
     from PIL import Image
@@ -612,13 +615,15 @@ def write_pillow(dst, fmt, bands, width, height, dpi, icc):
     for band in bands:
         full[y:y + len(band)] = band
         y += len(band)
-    Image.fromarray(full).save(dst, format=fmt, dpi=(dpi, dpi), icc_profile=icc)
+    extra = {"quality": jpeg_quality, "subsampling": 0, "optimize": True} if fmt == "JPEG" else {}  # 4:4:4: no colour loss
+    Image.fromarray(full).save(dst, format=fmt, dpi=(dpi, dpi), icc_profile=icc, **extra)
 
 
 def enhance(src, dst, size, unit, dpi, recipe, device_pref, tile,
             bits=8, cmyk_profile=None, intent="relative", preview=None, compress=False,
             mem_mb=DEFAULT_MEM_MB, engine="gpu", progress=None, cancel=None,
-            faces=False, face_strength=1.0, face_color=1.0, face_min=None, models_dir=None):
+            faces=False, face_strength=1.0, face_color=1.0, face_min=None, models_dir=None,
+            jpeg_quality=DEFAULT_JPEG_QUALITY):
     import numpy as np
     from PIL import Image, ImageOps
 
@@ -758,7 +763,7 @@ def enhance(src, dst, size, unit, dpi, recipe, device_pref, tile,
         if is_tiff:
             write_tiff(tmp, render_bands(), out_w, out_h, channels, dtype, rps, dpi, out_icc, compress)
         else:
-            write_pillow(tmp, fmt, render_bands(), out_w, out_h, dpi, out_icc)
+            write_pillow(tmp, fmt, render_bands(), out_w, out_h, dpi, out_icc, jpeg_quality)
         os.replace(tmp, dst)
     except BaseException:
         if os.path.exists(tmp):
@@ -776,7 +781,7 @@ def job_params(src, o):
     return {"algo": ALGO_VERSION, "pad": TILE_PAD, "src": [os.path.basename(src), st.st_size, st.st_mtime_ns],
             "size": o["size"].lower(), "unit": o["unit"], "dpi": o["dpi"], "tile": o["tile"], "bits": o["bits"],
             "model": [[*ident(p), w] for p, w in o["recipe"]], "cmyk": ident(o["cmyk_profile"]),
-            "intent": o["intent"] if o["cmyk_profile"] else None, "compress": o["compress"],
+            "intent": o["intent"] if o["cmyk_profile"] else None, "compress": o["compress"], "jpeg": o.get("jpeg_quality", DEFAULT_JPEG_QUALITY),
             "engine": o.get("engine", "gpu"),
             "faces": [o.get("face_strength", 1.0), o.get("face_color", 1.0), o.get("face_min")] if o.get("faces") else None}
 
@@ -904,6 +909,8 @@ def main():
     ap.add_argument("--face-min-size", type=int, default=None, metavar="PX",
                     help="smallest face to restore, as its width in the picture (default 32: below that the "
                          "result is a different-looking invented face, which is worse than a damaged one)")
+    ap.add_argument("--jpeg-quality", type=int, default=DEFAULT_JPEG_QUALITY, metavar="1..100",
+                    help="quality of JPEG output (default %(default)s; the colour is kept at full resolution)")
     ap.add_argument("--tiff-compress", action="store_true",
                     help="deflate-compress TIFF output (default: uncompressed, readable by every RIP)")
     ap.add_argument("--mem", type=int, default=DEFAULT_MEM_MB, metavar="MB",
@@ -972,6 +979,8 @@ def run(ap, a, stop=None):
         ap.error("--size is required")
     if a.mem < 1:
         ap.error("--mem must be at least 1")
+    if not 1 <= a.jpeg_quality <= 100:
+        ap.error("--jpeg-quality must be between 1 and 100")
     err = check_face_options(a.faces, a.face_strength, a.face_color, a.face_min_size)
     if err:
         ap.error(err)
@@ -1024,7 +1033,7 @@ def run(ap, a, stop=None):
     done, skipped, failed = run_batch(
         list(zip(a.images, outs)), a.resume, on_job=on_job, **hooks, size=a.size, unit=a.unit, dpi=a.dpi, recipe=recipe,
         device_pref=a.device, tile=a.tile, bits=a.bits, cmyk_profile=a.cmyk_profile, intent=a.intent,
-        preview=preview, compress=a.tiff_compress, mem_mb=a.mem, engine=a.engine,
+        preview=preview, compress=a.tiff_compress, mem_mb=a.mem, engine=a.engine, jpeg_quality=a.jpeg_quality,
         faces=a.faces, face_strength=a.face_strength, face_color=a.face_color, face_min=a.face_min_size,
         models_dir=a.models_dir)
     if a.preview_plain and not failed:

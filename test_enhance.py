@@ -1105,6 +1105,34 @@ try:
 except ImportError as e:
     print(f"engine json interface: skipped ({e.name} missing)")
 
+# JPEG output: a print-grade quality by default, adjustable, colour kept at full resolution
+try:
+    import tempfile as _tf2
+
+    import numpy as _np
+    from PIL import Image as _Im, JpegImagePlugin as _Jpeg
+
+    import enhance as _E
+    with _tf2.TemporaryDirectory() as d:
+        src = os.path.join(d, "in.png")
+        _Im.fromarray((_np.random.default_rng(2).random((60, 80, 3)) * 255).astype(_np.uint8)).save(src)
+        sizes = {}
+        for q in (30, 95):
+            out = os.path.join(d, f"q{q}.jpg")
+            _E.enhance(src, out, "0.5", "in", 100, [("unused.pth", 1.0)], "cpu", 256, jpeg_quality=q)  # shrinking: no AI
+            sizes[q] = os.path.getsize(out)
+        assert sizes[95] > 1.5 * sizes[30], sizes
+        assert _Jpeg.get_sampling(_Im.open(os.path.join(d, "q95.jpg"))) == 0  # 4:4:4
+        default = os.path.join(d, "default.jpg")
+        _E.enhance(src, default, "0.5", "in", 100, [("unused.pth", 1.0)], "cpu", 256)
+        assert os.path.getsize(default) == sizes[95]  # the default is 95
+        r = subprocess.run([sys.executable, "enhance.py", src, "--size", "1", "--jpeg-quality", "0", "-o", os.path.join(d, "x.jpg")],
+                           capture_output=True, text=True, cwd=os.path.dirname(os.path.abspath(__file__)))
+        assert r.returncode == 2 and "jpeg-quality" in r.stderr
+    print("jpeg quality ok")
+except ImportError:
+    print("jpeg quality: skipped (no Pillow)")
+
 # EXIF orientation + ICC survive (needs Pillow; shrinking path, so no weights/AI)
 try:
     import os

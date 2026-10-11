@@ -16,24 +16,27 @@ struct AdvancedSheet: View {
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(verbatim: model.t("model")).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
-                Picker("", selection: $model.model) {
+                Picker(model.t("model"), selection: $model.model) {
                     ForEach(PictureModel.allCases) { m in Text(verbatim: model.t(m.stringKey)).tag(m) }
                 }.pickerStyle(.segmented).labelsHidden()
             }
             VStack(alignment: .leading, spacing: 6) {
                 Text(verbatim: model.t("denoise")).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
                 Slider(value: $model.denoise, in: 0...1).disabled(model.model != .general)
+                    .accessibilityLabel(model.t("denoise"))
+                    .accessibilityValue("\(Int((model.denoise * 100).rounded()))%")
             }
             HStack(alignment: .bottom, spacing: 14) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(verbatim: model.t("processor")).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
-                    Picker("", selection: $model.processor) {
+                    Picker(model.t("processor"), selection: $model.processor) {
                         ForEach(processors) { p in Text(verbatim: model.t(p.stringKey)).tag(p) }
                     }.labelsHidden()
                 }
                 VStack(alignment: .leading, spacing: 6) {
                     Text(verbatim: model.t("dpi_custom")).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
                     TextField("", value: $model.dpi, format: .number.grouping(.never)).frame(width: 80).textFieldStyle(.roundedBorder)
+                        .accessibilityLabel(model.t("dpi_custom"))
                 }
             }
             if model.processor == .ane {
@@ -47,10 +50,19 @@ struct AdvancedSheet: View {
                 Text(verbatim: model.cmykPath.map { URL(fileURLWithPath: $0).lastPathComponent } ?? model.t("no_profile"))
                     .font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle).frame(maxWidth: 160)
                 Button(model.t("choose_profile")) { model.chooseProfile() }
-                if model.cmykPath != nil { Button { model.cmykPath = nil } label: { Image(systemName: "xmark") } }
+                if model.cmykPath != nil {
+                    Button { model.cmykPath = nil } label: { Image(systemName: "xmark") }
+                        .accessibilityLabel(model.t("no_profile"))
+                }
             }
             Toggle(model.t("tiff_compress"), isOn: $model.compress).disabled(!tiff)
             Text(verbatim: model.t("tiff_note")).font(.system(size: 12)).foregroundStyle(.secondary)
+            HStack {
+                Text(verbatim: model.t("jpeg_quality"))
+                Slider(value: Binding(get: { Double(model.jpegQuality) }, set: { model.jpegQuality = Int($0.rounded()) }), in: 50...100, step: 1)
+                    .accessibilityLabel(model.t("jpeg_quality"))
+                Text(verbatim: "\(model.jpegQuality)").monospacedDigit().frame(width: 30, alignment: .trailing)
+            }
             HStack {
                 Spacer()
                 Button(model.t("close_btn")) { model.showAdvanced = false }.keyboardShortcut(.defaultAction)

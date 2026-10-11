@@ -47,7 +47,7 @@ final class PrintPlanTests: XCTestCase {
     }
 
     func testPresetTurnsToThePicture() {
-        let a4 = Preset.all[0]
+        let a4 = Preset.all.first { $0.id == "A4" }!
         XCTAssertEqual(a4.size(forSource: (40, 30)).width, 29.7)  // landscape picture, landscape sheet
         XCTAssertEqual(a4.size(forSource: (30, 40)).width, 21)
         XCTAssertEqual(a4.size(forSource: nil).height, 29.7)

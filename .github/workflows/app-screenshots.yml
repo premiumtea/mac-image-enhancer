@@ -22,8 +22,10 @@ jobs:
         run: cd app && swift test
       - name: Build the app (window only; the engine is this checkout's Python)
         run: SKIP_ENGINE=1 PYTHON=python ./packaging/build_swift_app.sh
-      - name: Screenshots
+      - name: Screenshots (and a check that every control has an accessible name)
         run: |
+          swiftc -O packaging/ax_dump.swift -o /tmp/ax
+          export AX_TOOL=/tmp/ax
           python packaging/sample_picture.py shots-input.jpg
           export MAC_IMAGE_ENHANCER_ENGINE="$(which python)|$PWD/enhance.py"
           python packaging/screenshots_app.py "dist/Mac Image Enhancer.app" shots "$PWD/shots-input.jpg"

@@ -102,7 +102,8 @@ final class AppModelTests: XCTestCase {
         m.info = try? EngineInfo.decode(Data(#"{"version":"x","models_dir":"/m","groups":{},"face_min_px":32,"coreml":false,"vision":true}"#.utf8))
         let o = m.collect()!
         XCTAssertEqual(Array(o.args[1...]), ["--size", "45x33.8", "--unit", "cm", "--dpi", "200", "--model", "general", "--device", "gpu",
-                                            "--engine", "gpu16", "--json", "--denoise", "0.25", "--faces", "--face-strength", "0.50"])
+                                            "--engine", "gpu16", "--json", "--denoise", "0.25", "--faces", "--face-strength", "0.50",
+                                            "--jpeg-quality", "95"])
         XCTAssertEqual(o.groups, ["general", "faces"])  // 4x enlargement: the AI runs, so these files are needed
         XCTAssertFalse(o.tiff)
         m.bits16 = true
@@ -113,6 +114,37 @@ final class AppModelTests: XCTestCase {
         m.widthText = "5"
         m.heightText = "3.8"
         XCTAssertEqual(m.collect()!.groups, [])
+    }
+
+    func testSeveralPicturesPreviewOneAndSaveAll() {
+        let m = makeModel(engine: fakeEngine)
+        let urls = ["/tmp/a.png", "/tmp/b.png", "/tmp/c.png"].map { URL(fileURLWithPath: $0) }
+        m.images = urls
+        m.source = SourceImage(url: urls[1], pixelWidth: 40, pixelHeight: 30, thumbnail: makeImage(40, 30))
+        m.selectedIndex = 1
+        XCTAssertEqual(Array(m.collect()!.args.prefix(2)), ["/tmp/b.png", "--size"])  // the preview is of the picture on the stage
+        let save = m.collect(forSave: true)!.args
+        XCTAssertEqual(Array(save.prefix(4)), ["/tmp/a.png", "/tmp/b.png", "/tmp/c.png", "--size"])  // saving takes every picture
+    }
+
+    func testJpegQualityIsPassedAndKept() {
+        let m = makeModel(engine: fakeEngine)
+        open(m, 40, 30)
+        m.jpegQuality = 80
+        let args = m.collect()!.args
+        XCTAssertEqual(args[(args.firstIndex(of: "--jpeg-quality")!) + 1], "80")
+        m.persist()
+        XCTAssertEqual(Settings.load(from: defaults).jpegQuality, 80)
+        defaults.set(["jpegQuality": 500], forKey: "settings.v1")  // out of range: dropped
+        XCTAssertEqual(Settings.load(from: defaults).jpegQuality, 95)
+    }
+
+    func testPhotoSizesAreThere() {
+        let ids = Preset.all.map(\.id)
+        for want in ["4x6", "5x7", "8x10", "A5", "A4", "A0", "11x14", "24x36"] { XCTAssertTrue(ids.contains(want), want) }
+        let p = Preset.all.first { $0.id == "4x6" }!
+        XCTAssertEqual(p.size(forSource: (3, 2)).width, 6)  // a landscape picture gets the sheet lying down
+        XCTAssertEqual(p.unit, .inch)
     }
 
     func testSettingsRoundTripAndBadValuesAreDropped() {

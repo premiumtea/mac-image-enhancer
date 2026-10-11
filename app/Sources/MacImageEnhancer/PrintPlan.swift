@@ -118,11 +118,16 @@ struct Preset: Identifiable, Equatable {
     let unit: Unit
 
     static let all: [Preset] = [
+        Preset(id: "4x6", label: "4×6″", short: 4, long: 6, unit: .inch),
+        Preset(id: "5x7", label: "5×7″", short: 5, long: 7, unit: .inch),
+        Preset(id: "8x10", label: "8×10″", short: 8, long: 10, unit: .inch),
+        Preset(id: "A5", label: "A5", short: 14.8, long: 21, unit: .cm),
         Preset(id: "A4", label: "A4", short: 21, long: 29.7, unit: .cm),
         Preset(id: "A3", label: "A3", short: 29.7, long: 42, unit: .cm),
         Preset(id: "A2", label: "A2", short: 42, long: 59.4, unit: .cm),
         Preset(id: "A1", label: "A1", short: 59.4, long: 84.1, unit: .cm),
         Preset(id: "A0", label: "A0", short: 84.1, long: 118.9, unit: .cm),
+        Preset(id: "11x14", label: "11×14″", short: 11, long: 14, unit: .inch),
         Preset(id: "24x36", label: "24×36″", short: 24, long: 36, unit: .inch),
     ]
 

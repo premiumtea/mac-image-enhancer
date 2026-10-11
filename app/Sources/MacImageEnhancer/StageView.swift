@@ -40,6 +40,7 @@ struct EmptyStage: View {
                 Image(systemName: "photo.on.rectangle.angled")
                     .font(.system(size: 50, weight: .light))
                     .foregroundStyle(.white.opacity(0.92))
+                    .accessibilityHidden(true)
             }
             Text(verbatim: model.t("empty_title"))
                 .font(.system(size: 30, weight: .bold)).multilineTextAlignment(.center).foregroundStyle(.white)
@@ -64,7 +65,8 @@ struct PictureStage: View {
         if let src = model.source {
             let plan = model.plan
             let crop = plan.map { ImageTools.cropped(src.thumbnail, source: (src.pixelWidth, src.pixelHeight), plan: $0) } ?? src.thumbnail
-            let fit = fitted(CGFloat(crop.width) / CGFloat(crop.height), in: CGSize(width: area.width, height: max(area.height - 34, 50)))
+            let reserved: CGFloat = model.images.count > 1 ? 84 : 34
+            let fit = fitted(CGFloat(crop.width) / CGFloat(crop.height), in: CGSize(width: area.width, height: max(area.height - reserved, 50)))
             VStack(spacing: 12) {
                 ZStack(alignment: .topLeading) {
                     Image(decorative: crop, scale: 1).resizable().frame(width: fit.width, height: fit.height)
@@ -81,10 +83,52 @@ struct PictureStage: View {
                 .gesture(DragGesture(minimumDistance: 0).onChanged { v in
                     model.center = CGPoint(x: min(max(v.location.x / fit.width, 0), 1), y: min(max(v.location.y / fit.height, 0), 1))
                 })
-                Text(verbatim: model.t("stage_hint")).font(.system(size: 12)).foregroundStyle(Theme.secondary.opacity(0.85)).frame(height: 22)
+                // the same choice without a mouse: focus the picture and use the arrow keys (VoiceOver: adjust up and down)
+                .focusable()
+                .onMoveCommand { model.nudgeCenter($0) }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(src.name + ", " + model.t("marker_label"))
+                .accessibilityHint(model.t("stage_hint"))
+                .accessibilityAdjustableAction { dir in model.nudgeCenter(dir == .increment ? .down : .up) }
+                if model.images.count > 1 {
+                    ThumbnailStrip()
+                } else {
+                    Text(verbatim: model.t("stage_hint")).font(.system(size: 12)).foregroundStyle(Theme.secondary.opacity(0.85)).frame(height: 22)
+                }
             }
             .frame(width: area.width, height: area.height)
         }
+    }
+}
+
+/// Several pictures: a row of small pictures to choose which one is shown and previewed (all are saved).
+struct ThumbnailStrip: View {
+    @EnvironmentObject var model: AppModel
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(Array(model.images.enumerated()), id: \.offset) { i, url in
+                    let on = i == model.selectedIndex
+                    Button { model.selectImage(i) } label: {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.white.opacity(0.08))
+                            if let t = model.thumbs[url] {
+                                Image(decorative: t, scale: 1).resizable().scaledToFill()
+                            }
+                        }
+                        .frame(width: 64, height: 48)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(on ? Color.white : Color.white.opacity(0.18), lineWidth: on ? 2.5 : 1))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(url.lastPathComponent)
+                    .accessibilityAddTraits(on ? [.isSelected] : [])
+                }
+            }
+            .padding(.horizontal, 4).padding(.vertical, 4)
+        }
+        .frame(height: 58)
     }
 }
 
@@ -125,7 +169,7 @@ struct MarkerOverlay: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(.white, lineWidth: 2)
                 .frame(width: rect.width, height: rect.height).position(x: rect.midX, y: rect.midY)
             HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass").font(.system(size: 11, weight: .bold))
+                Image(systemName: "magnifyingglass").font(.system(size: 11, weight: .bold)).accessibilityHidden(true)
                 Text(verbatim: model.t("marker_label")).font(.system(size: 12, weight: .semibold))
             }
             .foregroundStyle(Color(red: 0.06, green: 0.06, blue: 0.08))
@@ -170,7 +214,7 @@ struct CompareStage: View {
                     }
                 Rectangle().fill(.white).frame(width: 2, height: fit.height).offset(x: fit.width * model.split - 1)
                     .shadow(color: .black.opacity(0.3), radius: 3)
-                Image(systemName: "arrow.left.and.right")
+                Image(systemName: "arrow.left.and.right").accessibilityHidden(true)
                     .font(.system(size: 14, weight: .bold)).foregroundStyle(Color(red: 0.1, green: 0.1, blue: 0.12))
                     .frame(width: 40, height: 40).background(Circle().fill(.white)).shadow(color: .black.opacity(0.35), radius: 8, y: 2)
                     .offset(x: fit.width * model.split - 20, y: fit.height / 2 - 20)
@@ -189,6 +233,17 @@ struct CompareStage: View {
             .gesture(DragGesture(minimumDistance: 0).onChanged { v in
                 model.split = min(max(v.location.x / fit.width, 0), 1)
             })
+            .focusable()
+            .onMoveCommand { dir in
+                if dir == .left { model.split = max(model.split - 0.05, 0) } else if dir == .right { model.split = min(model.split + 0.05, 1) }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(model.t("before") + " / " + model.t("after"))
+            .accessibilityHint(model.t("compare_hint"))
+            .accessibilityValue("\(Int((model.split * 100).rounded()))%")
+            .accessibilityAdjustableAction { dir in
+                model.split = min(max(model.split + (dir == .increment ? 0.1 : -0.1), 0), 1)
+            }
         }
         .frame(width: area.width, height: area.height)
     }

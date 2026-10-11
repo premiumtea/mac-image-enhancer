@@ -70,6 +70,40 @@ final class FlowTests: XCTestCase {
         }
     }
 
+    /// Several pictures saved together: every one of them comes out (once only the first did).
+    func testBatchSavesEveryPicture() async throws {
+        let second = dir.appendingPathComponent("second.png")
+        let third = dir.appendingPathComponent("third.png")
+        for u in [second, third] { try NSBitmapImageRep(cgImage: noisy(40, 30)).representation(using: .png, properties: [:])!.write(to: u) }
+        model.load([dir.appendingPathComponent("pic.png"), second, third])
+        try await wait("the pictures to open") { self.model.images.count == 3 }
+        let out = dir.appendingPathComponent("batch")
+        model.runSave(try XCTUnwrap(model.collect(forSave: true)), destination: out, single: false)
+        try await wait("the batch to finish") { self.model.phase == .idle }
+        let names = ((try? FileManager.default.contentsOfDirectory(atPath: out.path)) ?? []).filter { !$0.hasPrefix(".") }.sorted()
+        XCTAssertEqual(names, ["pic.png", "second.png", "third.png"], model.statusText)
+        XCTAssertEqual(model.status.key, "done")
+        XCTAssertEqual(model.status.args["n"] as? Int, 3)
+    }
+
+    /// Choosing another picture of several: it is shown, and the preview is of it.
+    func testChoosingAnotherPictureOfSeveral() async throws {
+        let second = dir.appendingPathComponent("wide.png")
+        try NSBitmapImageRep(cgImage: noisy(60, 30)).representation(using: .png, properties: [:])!.write(to: second)
+        model.load([dir.appendingPathComponent("pic.png"), second])
+        try await wait("both pictures to open") { self.model.images.count == 2 && self.model.source?.name == "pic.png" }
+        try await wait("the thumbnails") { self.model.thumbs.count == 2 }
+        model.selectImage(1)
+        try await wait("the second picture to show") { self.model.source?.name == "wide.png" }
+        XCTAssertEqual([model.source?.pixelWidth, model.source?.pixelHeight], [60, 30])
+        XCTAssertEqual(model.selectedIndex, 1)
+        XCTAssertEqual(model.heightText, "1")  // 2 in wide, as 60 x 30: the height follows the picture
+        model.startPreview()
+        try await wait("the preview of the second picture") { self.model.phase == .idle && self.model.compare }
+        XCTAssertEqual(model.preview?.result.size.width, 200)
+        XCTAssertEqual(model.preview?.result.size.height, 100)  // 2:1, not the 4:3 of the first picture
+    }
+
     func testPreviewThenSaveThenCancel() async throws {
         XCTAssertEqual(model.plan?.width, 200)  // 2 in x 100 dpi, the height follows the 4:3 picture
         XCTAssertEqual(model.plan?.height, 150)
@@ -93,7 +127,7 @@ final class FlowTests: XCTestCase {
 
         // Save: one picture, to the file a person chose; 16-bit forces TIFF and says so
         let out = dir.appendingPathComponent("print.png")
-        let o = try XCTUnwrap(model.collect())
+        let o = try XCTUnwrap(model.collect(forSave: true))
         model.runSave(o, destination: out, single: true)
         XCTAssertEqual(model.phase, .save)
         try await wait("the save to finish") { self.model.phase == .idle }
@@ -104,7 +138,7 @@ final class FlowTests: XCTestCase {
 
         model.bits16 = true
         let deep = dir.appendingPathComponent("deep.png")
-        model.runSave(try XCTUnwrap(model.collect()), destination: deep, single: true)
+        model.runSave(try XCTUnwrap(model.collect(forSave: true)), destination: deep, single: true)
         try await wait("the 16-bit save to finish") { self.model.phase == .idle }
         XCTAssertEqual(model.status.key, "tiff_renamed")
         XCTAssertTrue(FileManager.default.fileExists(atPath: dir.appendingPathComponent("deep.tif").path))
@@ -116,7 +150,7 @@ final class FlowTests: XCTestCase {
         model.widthText = "40"  // 4000 x 3000 px
         let big = dir.appendingPathComponent("big.tif")
         model.bits16 = true
-        model.runSave(try XCTUnwrap(model.collect()), destination: big, single: true)
+        model.runSave(try XCTUnwrap(model.collect(forSave: true)), destination: big, single: true)
         try await wait("the big print to get under way") { self.model.phase == .save && self.model.progress > 0 }
         model.cancel()
         try await wait("the cancel to take effect", timeout: 60) { self.model.phase == .idle }

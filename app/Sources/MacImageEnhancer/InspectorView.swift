@@ -45,6 +45,7 @@ struct Header: View {
             HStack(spacing: 9) {
                 Image(systemName: "photo").font(.system(size: 13, weight: .bold)).foregroundStyle(Color(red: 0.08, green: 0.08, blue: 0.11))
                     .frame(width: 26, height: 26).background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(.white))
+                    .accessibilityHidden(true)
                 Text(verbatim: "Mac Image Enhancer").font(.system(size: 13, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.8)
             }
             Spacer(minLength: 6)
@@ -56,10 +57,12 @@ struct Header: View {
                 }
             } label: {
                 HStack(spacing: 5) {
-                    Image(systemName: "globe").font(.system(size: 11))
+                    Image(systemName: "globe").font(.system(size: 11)).accessibilityHidden(true)
                     Text(verbatim: model.l10n.lang.uppercased()).font(.system(size: 12, weight: .medium))
                 }
                 .padding(.horizontal, 10).frame(height: 28).background(Capsule().fill(Theme.chipFill))
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(model.t("menu_language") + ": " + (Strings.languages.first { $0.code == model.l10n.lang }?.name ?? model.l10n.lang))
             }
             .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
         }
@@ -88,6 +91,7 @@ struct Chip: View {
                 .overlay(Capsule().strokeBorder(selected ? .clear : Theme.chipStroke, lineWidth: 1))
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? [.isSelected] : [])
     }
 }
 
@@ -102,9 +106,11 @@ struct SizeSection: View {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 TextField("", text: $model.widthText)
                     .textFieldStyle(.plain).multilineTextAlignment(.trailing).frame(width: width(model.widthText))
-                Text(verbatim: "×").foregroundStyle(Theme.secondary)
+                    .accessibilityLabel(model.t("width"))
+                Text(verbatim: "×").foregroundStyle(Theme.secondary).accessibilityHidden(true)
                 TextField("", text: $model.heightText)
                     .textFieldStyle(.plain).frame(width: width(model.heightText))
+                    .accessibilityLabel(model.t("height"))
                 Menu {
                     ForEach(Unit.allCases) { u in
                         Button(model.t(u.stringKey)) { model.setUnit(u) }
@@ -113,6 +119,7 @@ struct SizeSection: View {
                     Text(verbatim: model.t(model.unit.stringKey)).font(.system(size: 16)).foregroundStyle(Theme.secondary)
                 }
                 .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                .accessibilityLabel(model.t("unit") + ": " + model.t(model.unit.stringKey))
             }
             .font(.system(size: 40, weight: .light)).monospacedDigit().foregroundStyle(.white)
             .lineLimit(1).minimumScaleFactor(0.6)
@@ -149,6 +156,8 @@ struct QualitySection: View {
                             .contentShape(Capsule())
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(model.t(l.key) + ", \(l.dpi) DPI")
+                    .accessibilityAddTraits(on ? [.isSelected] : [])
                 }
             }
             .padding(4).background(Capsule().fill(Color.black.opacity(0.28)))
@@ -157,6 +166,7 @@ struct QualitySection: View {
                 HStack {
                     HStack(spacing: 8) {
                         Circle().fill(Theme.level(hint.level)).frame(width: 8, height: 8).shadow(color: Theme.level(hint.level), radius: 5)
+                            .accessibilityHidden(true)
                         Text(verbatim: model.t(hint.key)).font(.system(size: 13, weight: .semibold)).fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 6)
@@ -206,11 +216,14 @@ struct FacesSection: View {
                     .padding(.horizontal, 8).padding(.vertical, 2).overlay(Capsule().strokeBorder(Theme.care.opacity(0.6), lineWidth: 1))
                 Spacer(minLength: 4)
                 Toggle("", isOn: $model.faces).labelsHidden().toggleStyle(.switch).tint(Theme.accent)
+                    .accessibilityLabel(model.t("faces"))
             }
             if model.faces {
                 HStack(spacing: 10) {
                     Text(verbatim: model.t("face_strength")).font(.system(size: 12)).foregroundStyle(Theme.secondary)
                     Slider(value: $model.faceStrength, in: 0...1).tint(Theme.accent)
+                        .accessibilityLabel(model.t("face_strength"))
+                        .accessibilityValue("\(Int((model.faceStrength * 100).rounded()))%")
                 }
                 Text(verbatim: model.t("faces_note", ["px": model.info?.faceMinPx ?? 32])).font(.system(size: 12))
                     .foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)

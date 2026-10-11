@@ -38,6 +38,14 @@ enum ImageTools {
         return thumb.cropping(to: bounded) ?? thumb
     }
 
+    /// A small copy for the strip of pictures (upright, colour-managed), or nil if it is not a picture.
+    static func thumbnail(url: URL, maxPixel: Int = 200) -> CGImage? {
+        guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+        let opts: [CFString: Any] = [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceCreateThumbnailWithTransform: true,
+                                     kCGImageSourceThumbnailMaxPixelSize: maxPixel]
+        return CGImageSourceCreateThumbnailAtIndex(src, 0, opts as CFDictionary)
+    }
+
     static func nsImage(_ cg: CGImage) -> NSImage { NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height)) }
 
     /// Loads a PNG written by the engine, at its true pixel size.

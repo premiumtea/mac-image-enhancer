@@ -72,10 +72,13 @@ final class AppModel: ObservableObject {
     @Published var bits16: Bool
     @Published var cmykPath: String?
     @Published var compress: Bool
+    @Published var jpegQuality: Int
     var lastDir: String?
 
     // MARK: the picture and what is shown of it
     @Published var images: [URL] = []
+    @Published var selectedIndex = 0
+    @Published var thumbs: [URL: CGImage] = [:]
     @Published var source: SourceImage?
     @Published var center = CGPoint(x: 0.5, y: 0.5)
     @Published var stageSize = CGSize(width: 700, height: 520)
@@ -128,6 +131,7 @@ final class AppModel: ObservableObject {
         faceStrength = s.faceStrength
         bits16 = s.bits16
         compress = s.compress
+        jpegQuality = s.jpegQuality
         lastDir = s.lastDir
         tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("mac-image-enhancer-\(ProcessInfo.processInfo.processIdentifier)")
         try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
@@ -148,7 +152,7 @@ final class AppModel: ObservableObject {
     func persist() {
         Settings(lang: l10n.lang, preset: preset, width: widthText, height: heightText, unit: unit.rawValue, dpi: dpi,
                  model: model.rawValue, denoise: denoise, processor: processor.rawValue, faces: faces,
-                 faceStrength: faceStrength, bits16: bits16, compress: compress, lastDir: lastDir).save(to: defaults)
+                 faceStrength: faceStrength, bits16: bits16, compress: compress, jpegQuality: jpegQuality, lastDir: lastDir).save(to: defaults)
     }
 
     func shutdown() {
@@ -252,19 +256,49 @@ final class AppModel: ObservableObject {
                 return
             }
             images = files
-            source = img
+            selectedIndex = 0
+            thumbs = [:]
             lastDir = first.deletingLastPathComponent().path
-            center = CGPoint(x: 0.5, y: 0.5)
-            preview = nil
-            compare = false
-            lastOutput = nil
-            setStatus("ready")
-            if Preset.all.contains(where: { $0.id == preset }) {
-                applyPreset()
-            } else if !heightManual, let w = PrintMath.parseNumber(widthText) {
-                setQuietly { heightText = PrintMath.formatNumber(w * Double(img.pixelHeight) / Double(img.pixelWidth)) }
+            adopt(img)
+            if files.count > 1 { loadThumbnails(files) }
+        }
+    }
+
+    /// Makes `img` the picture on the stage: a new picture starts from the middle, with no old comparison.
+    private func adopt(_ img: SourceImage) {
+        source = img
+        center = CGPoint(x: 0.5, y: 0.5)
+        preview = nil
+        compare = false
+        lastOutput = nil
+        setStatus("ready")
+        if Preset.all.contains(where: { $0.id == preset }) {
+            applyPreset()
+        } else if !heightManual, let w = PrintMath.parseNumber(widthText) {
+            setQuietly { heightText = PrintMath.formatNumber(w * Double(img.pixelHeight) / Double(img.pixelWidth)) }
+        }
+        optionChanged()
+    }
+
+    /// Choose which of several pictures is shown (and previewed); all of them are saved.
+    func selectImage(_ index: Int) {
+        guard images.indices.contains(index), index != selectedIndex, !busy else { return }
+        let url = images[index]
+        Task {
+            guard let img = await Task.detached(operation: { ImageTools.load(url: url) }).value else { failRaw(url.lastPathComponent); return }
+            guard images.indices.contains(index), images[index] == url else { return }
+            selectedIndex = index
+            adopt(img)
+        }
+    }
+
+    private func loadThumbnails(_ files: [URL]) {
+        Task {
+            for url in files.prefix(200) {
+                let t = await Task.detached { ImageTools.thumbnail(url: url) }.value
+                guard images == files else { return }  // another set was opened meanwhile
+                if let t { thumbs[url] = t }
             }
-            optionChanged()
         }
     }
 
@@ -296,19 +330,22 @@ final class AppModel: ObservableObject {
         return (Int(min(max(stageSize.width * s, 240), 1280)), Int(min(max(stageSize.height * s, 180), 960)))
     }
 
-    func collect() -> JobOptions? {
-        guard let img = images.first else { fail("need_image"); return nil }
+    /// The engine's command line. A preview is about the picture on the stage; saving takes every picture opened.
+    func collect(forSave: Bool = false) -> JobOptions? {
+        guard images.indices.contains(selectedIndex) else { fail("need_image"); return nil }
+        let pictures = forSave ? images : [images[selectedIndex]]
         guard let w = widthValue, let h = heightValue else { fail("need_size"); return nil }
         guard dpi >= 1 else { fail("need_dpi"); return nil }
         guard engineCommand != nil else { fail("engine_missing"); return nil }
         if faces && info?.vision == false { fail("faces_unavailable"); return nil }
-        var a = [img.path, "--size", "\(PrintMath.g(w))x\(PrintMath.g(h))", "--unit", unit.rawValue, "--dpi", "\(dpi)",
+        var a = pictures.map(\.path) + ["--size", "\(PrintMath.g(w))x\(PrintMath.g(h))", "--unit", unit.rawValue, "--dpi", "\(dpi)",
                  "--model", model.rawValue, "--device", processor.device, "--engine", processor.engine, "--json"]
         if model == .general { a += ["--denoise", String(format: "%.2f", denoise)] }
         if faces { a += ["--faces", "--face-strength", String(format: "%.2f", faceStrength)] }
         if bits16 { a += ["--bits", "16"] }
         if let c = cmykPath { a += ["--cmyk-profile", c] }
         if compress { a += ["--tiff-compress"] }
+        a += ["--jpeg-quality", "\(jpegQuality)"]
         a += extraEngineArguments
         let needsAI = (plan?.passes ?? 0) > 0
         return JobOptions(args: a, needsAI: needsAI, groups: needsAI ? [model.rawValue] + (faces ? ["faces"] : []) : [], tiff: bits16 || cmykPath != nil)
@@ -468,11 +505,25 @@ final class AppModel: ObservableObject {
         compare = false
     }
 
+    /// Arrow keys (or VoiceOver's adjust) move the preview frame by a twentieth of the picture.
+    func nudgeCenter(_ direction: MoveCommandDirection) {
+        let step = 0.05
+        var c = center
+        switch direction {
+        case .left: c.x -= step
+        case .right: c.x += step
+        case .up: c.y -= step
+        case .down: c.y += step
+        @unknown default: break
+        }
+        center = CGPoint(x: min(max(c.x, 0), 1), y: min(max(c.y, 0), 1))
+    }
+
     // MARK: saving
 
     func save() {
         guard phase == .idle else { return }
-        guard let o = collect() else { return }
+        guard let o = collect(forSave: true) else { return }
         if images.count == 1 {
             let panel = NSSavePanel()
             let stem = images[0].deletingPathExtension().lastPathComponent
@@ -578,6 +629,7 @@ struct Settings {
     var faceStrength = 1.0
     var bits16 = false
     var compress = false
+    var jpegQuality = 95
     var lastDir: String?
 
     private static let key = "settings.v1"
@@ -599,6 +651,7 @@ struct Settings {
         if let v = saved["faceStrength"] as? Double, (0...1).contains(v) { s.faceStrength = v }
         if let v = saved["bits16"] as? Bool { s.bits16 = v }
         if let v = saved["compress"] as? Bool { s.compress = v }
+        if let v = saved["jpegQuality"] as? Int, (1...100).contains(v) { s.jpegQuality = v }
         s.lastDir = str("lastDir")
         return s
     }
@@ -606,7 +659,8 @@ struct Settings {
     func save(to d: UserDefaults) {
         var m: [String: Any] = ["preset": preset, "width": width, "height": height, "unit": unit, "dpi": dpi, "model": model,
                                 "denoise": (denoise * 100).rounded() / 100, "processor": processor, "faces": faces,
-                                "faceStrength": (faceStrength * 100).rounded() / 100, "bits16": bits16, "compress": compress]
+                                "faceStrength": (faceStrength * 100).rounded() / 100, "bits16": bits16, "compress": compress,
+                                "jpegQuality": jpegQuality]
         if let l = lang { m["lang"] = l }
         if let l = lastDir { m["lastDir"] = l }
         d.set(m, forKey: Self.key)
