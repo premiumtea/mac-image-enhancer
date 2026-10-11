@@ -1047,4 +1047,9 @@ def run(ap, a, stop=None):
 
 
 if __name__ == "__main__":
+    import multiprocessing
+
+    # In the packed engine, helper processes (Python's resource tracker, started while Core ML converts the model) run
+    # this same program again with interpreter-style arguments; this makes them do their job instead of failing
+    multiprocessing.freeze_support()
     main()

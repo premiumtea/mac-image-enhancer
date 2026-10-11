@@ -48,8 +48,9 @@ struct EmptyStage: View {
                 .font(.system(size: 15)).foregroundStyle(Theme.secondary).multilineTextAlignment(.center).frame(maxWidth: 440)
             Button { model.chooseImages() } label: {
                 Text(verbatim: model.t("open_btn")).font(.system(size: 15, weight: .semibold)).padding(.horizontal, 14).padding(.vertical, 4)
+                    .foregroundStyle(Theme.accentInk)
             }
-            .glassButton(prominent: true).tint(Theme.accent).controlSize(.large).foregroundStyle(Theme.accentInk)
+            .glassButton(prominent: true).tint(Theme.accent).controlSize(.large)
             Text(verbatim: model.t("empty_hint")).font(.system(size: 12)).foregroundStyle(Theme.secondary.opacity(0.8))
         }
         .padding(.bottom, 24)

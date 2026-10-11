@@ -18,10 +18,13 @@ struct BottomBar: View {
                 }
                 Button { model.startPreview() } label: { Text(verbatim: model.t("preview_btn")).font(.system(size: 14, weight: .medium)).padding(.horizontal, 10) }
                     .glassButton().controlSize(.large).disabled(model.source == nil)
-                Button { model.save() } label: { Text(verbatim: model.t("save_btn")).font(.system(size: 14, weight: .bold)).padding(.horizontal, 14).lineLimit(1) }
-                    .glassButton(prominent: true).tint(Theme.accent).controlSize(.large).disabled(model.source == nil)
-                    .foregroundStyle(model.source == nil ? Theme.secondary : Theme.accentInk)
-                    .layoutPriority(2)
+                Button { model.save() } label: {
+                    // the colour is set on the text itself: the glass button style would otherwise draw it in white on the orange
+                    Text(verbatim: model.t("save_btn")).font(.system(size: 14, weight: .bold)).padding(.horizontal, 14).lineLimit(1)
+                        .foregroundStyle(model.source == nil ? Theme.secondary : Theme.accentInk)
+                }
+                .glassButton(prominent: true).tint(Theme.accent).controlSize(.large).disabled(model.source == nil)
+                .layoutPriority(2)
             }
         }
         .padding(.leading, 24).padding(.trailing, 10)
