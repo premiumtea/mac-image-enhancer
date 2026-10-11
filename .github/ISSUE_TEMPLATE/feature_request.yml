@@ -1,0 +1,11 @@
+name: Idea or request
+description: Something you would like the app to do
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like to do, and why?
+      description: Start from the job you are trying to get done, not from the button you imagine.
+    validations:
+      required: true

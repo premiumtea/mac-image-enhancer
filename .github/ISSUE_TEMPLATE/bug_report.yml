@@ -1,0 +1,31 @@
+name: Bug report
+description: Something did not work, or looked wrong
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what you saw instead. A screenshot helps.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: Mac Image Enhancer menu > About
+      placeholder: "0.2.0"
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version and Mac
+      placeholder: "macOS 15.4, MacBook Air M2"
+    validations:
+      required: true
+  - type: textarea
+    id: picture
+    attributes:
+      label: The picture and settings
+      description: Size in pixels, paper size, quality, whether face recovery was on. Do not attach pictures you do not want to share.
