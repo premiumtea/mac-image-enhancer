@@ -70,7 +70,6 @@ struct AdvancedSheet: View {
         }
         .padding(24)
         .frame(width: 470)
-        .preferredColorScheme(.dark)
         .tint(Theme.accent)
         .onAppear { DispatchQueue.main.async { NSApp.keyWindow?.makeFirstResponder(nil) } }
     }

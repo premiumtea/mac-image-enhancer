@@ -19,7 +19,6 @@ struct ContentView: View {
             if model.dropTargeted { DropOverlay() }
         }
         .frame(minWidth: 1000, minHeight: 620)
-        .preferredColorScheme(.dark)
         .onAppear {  // no number field should start out selected
             DispatchQueue.main.async { NSApp.keyWindow?.makeFirstResponder(nil) }
         }
@@ -64,7 +63,7 @@ struct TopPill: View {
                 Button { model.chooseImages() } label: {
                     Text(verbatim: model.t("change_pic").replacingOccurrences(of: "…", with: ""))
                         .font(.system(size: 12, weight: .medium)).padding(.horizontal, 11).frame(height: 24)
-                        .background(Capsule().fill(Color.white.opacity(0.14)))
+                        .background(Capsule().fill(Theme.chipFill))
                 }
                 .buttonStyle(.plain)
             }
@@ -82,7 +81,7 @@ struct DropOverlay: View {
     var body: some View {
         ZStack {
             Color.black.opacity(0.35)
-            Text(verbatim: model.t("drop_hint")).font(.system(size: 22, weight: .semibold)).foregroundStyle(.white)
+            Text(verbatim: model.t("drop_hint")).font(.system(size: 22, weight: .semibold)).foregroundStyle(Theme.text)
                 .padding(.horizontal, 36).frame(height: 84).liquidGlass(RoundedRectangle(cornerRadius: 28, style: .continuous))
         }
         .ignoresSafeArea().allowsHitTesting(false)

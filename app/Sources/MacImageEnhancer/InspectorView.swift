@@ -27,7 +27,7 @@ struct InspectorView: View {
                 }
                 .padding(.horizontal, 18).frame(height: 44).contentShape(Capsule())
             }
-            .buttonStyle(.plain).foregroundStyle(.white)
+            .buttonStyle(.plain).foregroundStyle(Theme.text)
             .liquidGlass(Capsule(), interactive: true)
         }
         .padding(22)
@@ -43,8 +43,8 @@ struct Header: View {
     var body: some View {
         HStack {
             HStack(spacing: 9) {
-                Image(systemName: "photo").font(.system(size: 13, weight: .bold)).foregroundStyle(Color(red: 0.08, green: 0.08, blue: 0.11))
-                    .frame(width: 26, height: 26).background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(.white))
+                Image(systemName: "photo").font(.system(size: 13, weight: .bold)).foregroundStyle(Theme.selectedInk)
+                    .frame(width: 26, height: 26).background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.selectedFill))
                     .accessibilityHidden(true)
                 Text(verbatim: "Mac Image Enhancer").font(.system(size: 13, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.8)
             }
@@ -85,9 +85,9 @@ struct Chip: View {
         Button(action: action) {
             Text(verbatim: label)
                 .font(.system(size: 13, weight: selected ? .bold : .medium))
-                .foregroundStyle(selected ? Color(red: 0.06, green: 0.06, blue: 0.08) : .white)
+                .foregroundStyle(selected ? Theme.selectedInk : Theme.text)
                 .padding(.horizontal, 14).frame(height: 32)
-                .background(Capsule().fill(selected ? Color.white : Theme.chipFill))
+                .background(Capsule().fill(selected ? Theme.selectedFill : Theme.chipFill))
                 .overlay(Capsule().strokeBorder(selected ? .clear : Theme.chipStroke, lineWidth: 1))
         }
         .buttonStyle(.plain)
@@ -121,7 +121,7 @@ struct SizeSection: View {
                 .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                 .accessibilityLabel(model.t("unit") + ": " + model.t(model.unit.stringKey))
             }
-            .font(.system(size: 40, weight: .light)).monospacedDigit().foregroundStyle(.white)
+            .font(.system(size: 40, weight: .light)).monospacedDigit().foregroundStyle(Theme.text)
             .lineLimit(1).minimumScaleFactor(0.6)
             FlowLayout(spacing: 7) {
                 ForEach(Preset.all) { p in
@@ -150,9 +150,9 @@ struct QualitySection: View {
                     Button { withAnimation(.snappy(duration: 0.2)) { model.dpi = l.dpi } } label: {
                         Text(verbatim: model.t(l.key))
                             .font(.system(size: 13, weight: on ? .bold : .medium))
-                            .foregroundStyle(on ? Color(red: 0.06, green: 0.06, blue: 0.08) : .white.opacity(0.85))
+                            .foregroundStyle(on ? Theme.selectedInk : Theme.text.opacity(0.85))
                             .frame(maxWidth: .infinity).frame(height: 36)
-                            .background { if on { Capsule().fill(.white).shadow(color: .black.opacity(0.3), radius: 4, y: 2) } }
+                            .background { if on { Capsule().fill(Theme.selectedFill).shadow(color: .black.opacity(0.3), radius: 4, y: 2) } }
                             .contentShape(Capsule())
                     }
                     .buttonStyle(.plain)
@@ -160,7 +160,7 @@ struct QualitySection: View {
                     .accessibilityAddTraits(on ? [.isSelected] : [])
                 }
             }
-            .padding(4).background(Capsule().fill(Color.black.opacity(0.28)))
+            .padding(4).background(Capsule().fill(Theme.track))
             if let plan = model.plan {
                 let hint = PrintMath.qualityHint(scale: plan.scale, passes: plan.passes)
                 HStack {
@@ -195,8 +195,8 @@ struct StretchGauge: View {
                     .init(color: Theme.care, location: 0.4), .init(color: Theme.care, location: 0.8),
                     .init(color: Theme.bad, location: 0.8), .init(color: Theme.bad, location: 1)],
                     startPoint: .leading, endPoint: .trailing)).frame(height: 6)
-                Circle().fill(.white).frame(width: 14, height: 14)
-                    .shadow(color: .white.opacity(0.4), radius: 5).offset(x: x - 7)
+                Circle().fill(Theme.selectedFill).frame(width: 14, height: 14)
+                    .shadow(color: Theme.selectedFill.opacity(0.4), radius: 5).offset(x: x - 7)
             }
             .frame(height: 14)
         }

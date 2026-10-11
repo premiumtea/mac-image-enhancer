@@ -20,7 +20,7 @@ struct BottomBar: View {
                     .glassButton().controlSize(.large).disabled(model.source == nil)
                 Button { model.save() } label: { Text(verbatim: model.t("save_btn")).font(.system(size: 14, weight: .bold)).padding(.horizontal, 14).lineLimit(1) }
                     .glassButton(prominent: true).tint(Theme.accent).controlSize(.large).disabled(model.source == nil)
-                    .foregroundStyle(model.source == nil ? Color.white.opacity(0.4) : Theme.accentInk)
+                    .foregroundStyle(model.source == nil ? Theme.secondary : Theme.accentInk)
                     .layoutPriority(2)
             }
         }

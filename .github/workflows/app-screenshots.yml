@@ -22,17 +22,23 @@ jobs:
         run: cd app && swift test
       - name: Build the app (window only; the engine is this checkout's Python)
         run: SKIP_ENGINE=1 PYTHON=python ./packaging/build_swift_app.sh
-      - name: Screenshots (and a check that every control has an accessible name)
+      - name: Screenshots in Light Mode (and a check that every control has an accessible name)
         run: |
           swiftc -O packaging/ax_dump.swift -o /tmp/ax
           export AX_TOOL=/tmp/ax
           python packaging/sample_picture.py shots-input.jpg
           export MAC_IMAGE_ENHANCER_ENGINE="$(which python)|$PWD/enhance.py"
-          python packaging/screenshots_app.py "dist/Mac Image Enhancer.app" shots "$PWD/shots-input.jpg"
+          python packaging/screenshots_app.py "dist/Mac Image Enhancer.app" shots/light "$PWD/shots-input.jpg"
+      - name: Screenshots in Dark Mode
+        run: |
+          osascript -e 'tell application "System Events" to tell appearance preferences to set dark mode to true'
+          sleep 3
+          export MAC_IMAGE_ENHANCER_ENGINE="$(which python)|$PWD/enhance.py"
+          python packaging/screenshots_app.py "dist/Mac Image Enhancer.app" shots/dark "$PWD/shots-input.jpg"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: app-screenshots
           path: |
-            shots/*.png
-            shots/*.log
+            shots/**/*.png
+            shots/**/*.log

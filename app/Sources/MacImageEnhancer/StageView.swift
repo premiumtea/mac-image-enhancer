@@ -39,11 +39,11 @@ struct EmptyStage: View {
                 Circle().fill(Color.clear).frame(width: 132, height: 132).liquidGlass(Circle())
                 Image(systemName: "photo.on.rectangle.angled")
                     .font(.system(size: 50, weight: .light))
-                    .foregroundStyle(.white.opacity(0.92))
+                    .foregroundStyle(Theme.text.opacity(0.92))
                     .accessibilityHidden(true)
             }
             Text(verbatim: model.t("empty_title"))
-                .font(.system(size: 30, weight: .bold)).multilineTextAlignment(.center).foregroundStyle(.white)
+                .font(.system(size: 30, weight: .bold)).multilineTextAlignment(.center).foregroundStyle(Theme.text)
             Text(verbatim: model.t("empty_text"))
                 .font(.system(size: 15)).foregroundStyle(Theme.secondary).multilineTextAlignment(.center).frame(maxWidth: 440)
             Button { model.chooseImages() } label: {
@@ -77,8 +77,8 @@ struct PictureStage: View {
                 }
                 .frame(width: fit.width, height: fit.height)
                 .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(Color.white.opacity(0.14), lineWidth: 1))
-                .shadow(color: .black.opacity(0.5), radius: 40, y: 22)
+                .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 1))
+                .shadow(color: Theme.photoShadow, radius: 40, y: 22)
                 .contentShape(Rectangle())
                 .gesture(DragGesture(minimumDistance: 0).onChanged { v in
                     model.center = CGPoint(x: min(max(v.location.x / fit.width, 0), 1), y: min(max(v.location.y / fit.height, 0), 1))
@@ -112,14 +112,14 @@ struct ThumbnailStrip: View {
                     let on = i == model.selectedIndex
                     Button { model.selectImage(i) } label: {
                         ZStack {
-                            RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.white.opacity(0.08))
+                            RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.chipFill)
                             if let t = model.thumbs[url] {
                                 Image(decorative: t, scale: 1).resizable().scaledToFill()
                             }
                         }
                         .frame(width: 64, height: 48)
                         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(on ? Color.white : Color.white.opacity(0.18), lineWidth: on ? 2.5 : 1))
+                        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(on ? Theme.selectedFill : Theme.hairline, lineWidth: on ? 2.5 : 1))
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(url.lastPathComponent)
@@ -144,7 +144,7 @@ struct PaperLabel: View {
 
     var body: some View {
         Text(verbatim: text)
-            .font(.system(size: 12, weight: .medium)).foregroundStyle(.white)
+            .font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.text)
             .padding(.horizontal, 14).frame(height: 30)
             .liquidGlass(Capsule())
     }
@@ -227,8 +227,8 @@ struct CompareStage: View {
             }
             .frame(width: fit.width, height: fit.height)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Color.white.opacity(0.14), lineWidth: 1))
-            .shadow(color: .black.opacity(0.5), radius: 40, y: 22)
+            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 1))
+            .shadow(color: Theme.photoShadow, radius: 40, y: 22)
             .contentShape(Rectangle())
             .gesture(DragGesture(minimumDistance: 0).onChanged { v in
                 model.split = min(max(v.location.x / fit.width, 0), 1)

@@ -8,9 +8,19 @@ enum Theme {
     static let ok = Color(red: 0.36, green: 0.89, blue: 0.66)
     static let care = Color(red: 1.0, green: 0.76, blue: 0.35)
     static let bad = Color(red: 1.0, green: 0.48, blue: 0.42)
-    static let secondary = Color.white.opacity(0.62)
-    static let chipFill = Color.white.opacity(0.10)
-    static let chipStroke = Color.white.opacity(0.14)
+    // These follow the system appearance: the window is dark glass in Dark Mode and light glass in Light Mode.
+    private static func adaptive(dark: NSColor, light: NSColor) -> Color {
+        Color(nsColor: NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light })
+    }
+    static let text = adaptive(dark: .white, light: NSColor(white: 0.07, alpha: 1))
+    static let secondary = adaptive(dark: NSColor(white: 1, alpha: 0.62), light: NSColor(white: 0, alpha: 0.58))
+    static let chipFill = adaptive(dark: NSColor(white: 1, alpha: 0.10), light: NSColor(white: 0, alpha: 0.06))
+    static let chipStroke = adaptive(dark: NSColor(white: 1, alpha: 0.14), light: NSColor(white: 0, alpha: 0.10))
+    static let hairline = adaptive(dark: NSColor(white: 1, alpha: 0.14), light: NSColor(white: 0, alpha: 0.12))
+    static let selectedFill = adaptive(dark: .white, light: NSColor(white: 0.1, alpha: 1))   // the chosen chip / segment
+    static let selectedInk = adaptive(dark: NSColor(red: 0.06, green: 0.06, blue: 0.08, alpha: 1), light: .white)
+    static let track = adaptive(dark: NSColor(white: 0, alpha: 0.28), light: NSColor(white: 0, alpha: 0.07))
+    static let photoShadow = adaptive(dark: NSColor(white: 0, alpha: 0.5), light: NSColor(white: 0, alpha: 0.28))
 
     static func level(_ l: PrintMath.Level) -> Color { l == .ok ? ok : l == .care ? care : bad }
 }
@@ -23,7 +33,7 @@ extension View {
             self.glassEffect(interactive ? Glass.regular.interactive() : Glass.regular, in: shape)
         } else {
             self.background(.ultraThinMaterial, in: shape)
-                .overlay(shape.strokeBorder(Color.white.opacity(0.18), lineWidth: 1))
+                .overlay(shape.strokeBorder(Theme.hairline, lineWidth: 1))
                 .shadow(color: .black.opacity(0.25), radius: 18, y: 8)
         }
     }
@@ -49,25 +59,31 @@ extension View {
 /// The window's background: the picture, blurred into a glow, or a dusk gradient before one is open.
 struct AmbientBackground: View {
     let image: CGImage?
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
+        let dark = scheme == .dark
         ZStack {
-            Color(red: 0.043, green: 0.043, blue: 0.07)
+            dark ? Color(red: 0.043, green: 0.043, blue: 0.07) : Color(red: 0.95, green: 0.94, blue: 0.96)
             if let image {
                 Image(decorative: image, scale: 1)
                     .resizable().scaledToFill()
                     .blur(radius: 80)
-                    .saturation(1.6)
-                    .brightness(-0.22)
+                    .saturation(dark ? 1.6 : 1.3)
+                    .brightness(dark ? -0.22 : 0.1)
                     .scaleEffect(1.4)
                     .transition(.opacity)
-            } else {
+            } else if dark {
                 LinearGradient(colors: [Color(red: 0.11, green: 0.09, blue: 0.27), Color(red: 0.30, green: 0.16, blue: 0.40),
                                         Color(red: 0.55, green: 0.24, blue: 0.40)], startPoint: .top, endPoint: .bottom)
                     .opacity(0.65)
                 RadialGradient(colors: [Theme.accent.opacity(0.45), .clear], center: .init(x: 0.45, y: 1.0), startRadius: 0, endRadius: 520)
+            } else {
+                LinearGradient(colors: [Color(red: 0.86, green: 0.88, blue: 1.0), Color(red: 0.96, green: 0.88, blue: 0.95),
+                                        Color(red: 1.0, green: 0.86, blue: 0.78)], startPoint: .top, endPoint: .bottom)
+                RadialGradient(colors: [Theme.accent.opacity(0.35), .clear], center: .init(x: 0.45, y: 1.0), startRadius: 0, endRadius: 520)
             }
-            Color.black.opacity(0.32)
+            (dark ? Color.black.opacity(0.32) : Color.white.opacity(0.4))
         }
         .animation(.easeInOut(duration: 0.5), value: image == nil)
         .ignoresSafeArea()
