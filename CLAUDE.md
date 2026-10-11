@@ -290,6 +290,10 @@ from github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.p
    committed by mistake and pushed. All commit hashes changed (v0.1.0 now points at d013320), main was force-pushed, the Release
    workflow was disabled while the tag moved so the published .dmg was not rebuilt. Old objects stay fetchable on GitHub by their
    SHA until GitHub collects them (not in our hands). A backup bundle was kept outside the repo. `.gitignore` covers `.build/`.
+   **v0.2.0 released 2026-10-11** (MacImageEnhancer-0.2.0-arm64.dmg, 235,496,765 B, sha256 b69afa4755ae8e8c7bfc3852eb3bd432e6c8d4634e44da3e9c729b160b964a22; app 573 MB). Checked from the
+   downloaded dmg: checksum, codesign, version, bundled engine  (coreml true) and , and the app opened with
+   three pictures through Open With (strip of three named thumbnails, "+2 more", all 26 controls named, Language > Thai redraws
+   at once). v0.1.1 (same day) and v0.1.0 are older releases of the same repo.
    **v0.1.1 (2026-10-11):** the stream-hang and language-redraw fixes. **v0.2.0 work (same day, user said "ทำทั้งหมดเลย" to
    the follow-up list):** found by using the released app for real on this Mac (display exists but `screencapture` fails; drive
    it with System Events / a Swift AX tool, see `packaging/ax_dump.swift`): (1) the Language menu did not redraw the window
