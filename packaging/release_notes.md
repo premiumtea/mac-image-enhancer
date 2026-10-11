@@ -1,11 +1,18 @@
-First public build of **Mac Image Enhancer**: a native macOS app that enlarges a picture for printing with
+**Mac Image Enhancer** is a native macOS app that enlarges a picture for printing with
 [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN), on your own Mac. Tell it the paper size and quality, see the real
 result for any area at 100% next to the plain enlargement, then save the print. On macOS 26 the window uses Apple's
 Liquid Glass.
 
+## What is new in __VERSION__
+
+- Fixed: the window could stay on "working" for good when the engine ended almost at once (for example on a picture that
+  cannot be read). Pressing Preview or Save again now always works.
+- Fixed: choosing another language in the Language menu did not change the window until another control was touched.
+- The repository history was cleaned of build files that had been committed by mistake (no change to the app).
+
 ## Install
 
-1. Download `MacImageEnhancer-0.1.0-arm64.dmg`, open it, and drag the app to Applications.
+1. Download `MacImageEnhancer-__VERSION__-arm64.dmg`, open it, and drag the app to Applications.
 2. **This build is not signed with an Apple Developer ID and is not notarized**, so macOS stops it the first time.
    - macOS 15 and later: try to open the app once, then System Settings > Privacy & Security > scroll down > **Open Anyway**.
    - macOS 14 and earlier: right-click the app > Open > Open.

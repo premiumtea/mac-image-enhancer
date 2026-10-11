@@ -16,7 +16,7 @@ import signal
 import sys
 import threading
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 # Some ops may be missing on MPS; let torch fall back to CPU for them.
 os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")

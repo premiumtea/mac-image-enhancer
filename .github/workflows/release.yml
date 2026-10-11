@@ -1,5 +1,6 @@
 # Builds "Mac Image Enhancer.app" (the SwiftUI window with the Python engine inside it) and a .dmg. Two ways to run it:
-#  - push a version tag (git tag v0.1.0 && git push --tags): builds, then publishes a GitHub release
+#  - push a version tag (git tag v0.1.1 && git push --tags): builds, then publishes a GitHub release
+#    (the notes are packaging/release_notes.md, with __VERSION__ filled in)
 #  - Actions > Release > Run workflow: builds and checks only; the .dmg and a screenshot of the built app come back
 #    as the "release-build" artifact, nothing is published
 # macOS 26 runner: the Liquid Glass APIs need the Xcode 26 SDK (the app still runs on macOS 13 and later, with frosted
@@ -49,11 +50,14 @@ jobs:
             dist/SHA256SUMS.txt
             shots/*.png
             shots/*.log
+      - name: Release notes for this version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: sed "s/__VERSION__/${GITHUB_REF_NAME#v}/g" packaging/release_notes.md > release-body.md
       - uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
           name: Mac Image Enhancer ${{ github.ref_name }}
-          body_path: packaging/release_notes.md
+          body_path: release-body.md
           files: |
             dist/*.dmg
             dist/SHA256SUMS.txt
