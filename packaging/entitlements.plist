@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Entitlements for a hardened-runtime (notarizable) build. UNTESTED: written from how PyInstaller + PyTorch apps are
+     usually notarized, without a Developer ID to try it with. If a signed build starts but crashes, this file is the
+     first place to look (Console.app shows the code-signing reason). -->
+<plist version="1.0">
+<dict>
+    <!-- PyInstaller loads its Python and libraries from a folder signed in one pass: library validation would refuse them -->
+    <key>com.apple.security.cs.disable-library-validation</key><true/>
+    <!-- PyTorch / Metal Performance Shaders create executable memory -->
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key><true/>
+    <key>com.apple.security.cs.allow-jit</key><true/>
+</dict>
+</plist>

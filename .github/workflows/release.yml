@@ -15,7 +15,9 @@ on:
 jobs:
   dmg:
     runs-on: macos-26
-    timeout-minutes: 45
+    timeout-minutes: 60
+    env:
+      HAVE_APPLE_SECRETS: ${{ secrets.MACOS_CERT_P12 != '' && secrets.MACOS_SIGN_IDENTITY != '' && secrets.NOTARY_APP_PASSWORD != '' }}
     permissions:
       contents: write   # to create the release (a repository's default token is read-only)
     steps:
@@ -27,6 +29,30 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install torch torchvision spandrel pillow numpy tifffile pyinstaller pyobjc-framework-Vision pyobjc-framework-Quartz
+      # Signing and notarization run only when the repository has the Apple secrets (see README: "The .app and .dmg");
+      # without them the build is ad hoc signed, as v0.1.x were. UNTESTED: written without a Developer ID.
+      - name: Import the Developer ID certificate and notary credentials
+        if: env.HAVE_APPLE_SECRETS == 'true'
+        env:
+          CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
+          NOTARY_TEAM_ID: ${{ secrets.NOTARY_TEAM_ID }}
+          NOTARY_APP_PASSWORD: ${{ secrets.NOTARY_APP_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KP="$(uuidgen)"
+          security create-keychain -p "$KP" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KP" "$KEYCHAIN"
+          echo "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KP" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" login.keychain-db
+          xcrun notarytool store-credentials mie-notary --apple-id "$NOTARY_APPLE_ID" --team-id "$NOTARY_TEAM_ID" --password "$NOTARY_APP_PASSWORD"
+          echo "SIGN_ID=$SIGN_IDENTITY" >> "$GITHUB_ENV"
+          echo "NOTARY_PROFILE=mie-notary" >> "$GITHUB_ENV"
       - name: Build
         run: PYTHON=python ./packaging/build_swift_app.sh
       - name: Check the engine inside the app runs

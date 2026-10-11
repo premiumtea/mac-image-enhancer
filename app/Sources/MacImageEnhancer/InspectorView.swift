@@ -8,7 +8,7 @@ struct InspectorView: View {
         VStack(alignment: .leading, spacing: 20) {
             Header()
             ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 20) {
                     SizeSection()
                     QualitySection()
                     FacesSection()
@@ -86,7 +86,7 @@ struct Chip: View {
             Text(verbatim: label)
                 .font(.system(size: 13, weight: selected ? .bold : .medium))
                 .foregroundStyle(selected ? Theme.selectedInk : Theme.text)
-                .padding(.horizontal, 14).frame(height: 32)
+                .padding(.horizontal, 13).frame(height: 30)
                 .background(Capsule().fill(selected ? Theme.selectedFill : Theme.chipFill))
                 .overlay(Capsule().strokeBorder(selected ? .clear : Theme.chipStroke, lineWidth: 1))
         }
@@ -98,7 +98,7 @@ struct Chip: View {
 struct SizeSection: View {
     @EnvironmentObject var model: AppModel
 
-    private func width(_ text: String) -> CGFloat { CGFloat(max(text.count, 2)) * 22 + 6 }
+    private func width(_ text: String) -> CGFloat { CGFloat(max(text.count, 2)) * 20 + 6 }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -121,7 +121,7 @@ struct SizeSection: View {
                 .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                 .accessibilityLabel(model.t("unit") + ": " + model.t(model.unit.stringKey))
             }
-            .font(.system(size: 40, weight: .light)).monospacedDigit().foregroundStyle(Theme.text)
+            .font(.system(size: 36, weight: .light)).monospacedDigit().foregroundStyle(Theme.text)
             .lineLimit(1).minimumScaleFactor(0.6)
             FlowLayout(spacing: 7) {
                 ForEach(Preset.all) { p in

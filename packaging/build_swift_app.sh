@@ -6,7 +6,10 @@
 #                                              # MAC_IMAGE_ENHANCER_ENGINE="python|enhance.py" to use a checkout's engine)
 #
 # Needs Xcode 26 (the Liquid Glass APIs), and the project's venv for the version, the icon and the engine.
-# The app is signed ad hoc, which is what Apple Silicon needs to run a locally built app. Set SIGN_ID to sign properly.
+# The app is signed ad hoc, which is what Apple Silicon needs to run a locally built app. With SIGN_ID set to a
+# "Developer ID Application: Name (TEAMID)" identity it is signed for distribution (hardened runtime + entitlements),
+# and with NOTARY_PROFILE too (a `notarytool store-credentials` profile name) the .dmg is notarized and stapled.
+# The signed path is UNTESTED: it needs an Apple Developer account, which this was written without.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 PY=${PYTHON:-.venv/bin/python}
@@ -29,12 +32,18 @@ sed "s/__VERSION__/$VERSION/g" packaging/Info.plist.in > "$APP/Contents/Info.pli
 
 if [ -z "${SKIP_ENGINE:-}" ]; then
   $PY packaging/collect_licenses.py build/THIRD_PARTY_LICENSES.txt
-  $PY -m PyInstaller --noconfirm --clean --distpath build/engine-dist --workpath build/pyinstaller packaging/engine.spec
+  SIGN_ID="${SIGN_ID:--}" $PY -m PyInstaller --noconfirm --clean --distpath build/engine-dist --workpath build/pyinstaller packaging/engine.spec
   cp -R build/engine-dist/mac-image-enhancer-engine "$APP/Contents/Resources/engine"
   cp build/THIRD_PARTY_LICENSES.txt "$APP/Contents/Resources/"
 fi
 
-codesign --force --deep --sign "${SIGN_ID:--}" "$APP"
+if [ "${SIGN_ID:--}" = "-" ]; then
+  codesign --force --deep --sign - "$APP"
+else
+  # the engine's binaries were signed by PyInstaller; the window's executable and the bundle are signed here
+  codesign --force --timestamp --options runtime --entitlements packaging/entitlements.plist --sign "$SIGN_ID" "$APP/Contents/MacOS/MacImageEnhancer"
+  codesign --force --timestamp --options runtime --entitlements packaging/entitlements.plist --sign "$SIGN_ID" "$APP"
+fi
 codesign --verify --deep --strict "$APP"
 echo "built: $APP ($(du -sh "$APP" | cut -f1))"
 
@@ -46,5 +55,13 @@ if [ -z "${SKIP_DMG:-}" ] && [ -z "${SKIP_ENGINE:-}" ]; then
   DMG="dist/MacImageEnhancer-$VERSION-arm64.dmg"
   rm -f "$DMG"
   hdiutil create -volname "$NAME $VERSION" -srcfolder "$STAGE" -ov -format UDZO "$DMG"
+  if [ "${SIGN_ID:--}" != "-" ]; then
+    codesign --force --timestamp --sign "$SIGN_ID" "$DMG"
+    if [ -n "${NOTARY_PROFILE:-}" ]; then
+      xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait   # fails the build if Apple rejects it
+      xcrun stapler staple "$DMG"
+      spctl --assess --type open --context context:primary-signature -v "$DMG"
+    fi
+  fi
   echo "built: $DMG ($(du -h "$DMG" | cut -f1))"
 fi
